@@ -3,6 +3,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# 只复制依赖文件（为了缓存 npm install）
+COPY frontend/package*.json ./ 
 # Copy all files
 COPY frontend/ ./ 
 
