@@ -19,6 +19,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s  # ← 首次启动等待 60s 再开始检查
 
   # Redis Cache
   redis:
@@ -34,6 +35,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s  # ← 首次启动等待 60s 再开始检查
 
   # Backend API
   backend:
