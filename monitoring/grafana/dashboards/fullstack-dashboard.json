@@ -1,0 +1,118 @@
+{
+  "dashboard": {
+    "title": "FullStack Application Dashboard",
+    "tags": ["fullstack", "monitoring"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "API Request Rate",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])",
+            "legendFormat": "{{method}} {{path}}"
+          }
+        ]
+      },
+      {
+        "title": "API Response Time",
+        "type": "graph",
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "50th percentile"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+            "legendFormat": "5xx errors"
+          },
+          {
+            "expr": "rate(http_requests_total{status=~\"4..\"}[5m])",
+            "legendFormat": "4xx errors"
+          }
+        ]
+      },
+      {
+        "title": "Database Connections",
+        "type": "graph",
+        "gridPos": {
+          "x": 12,
+          "y": 8,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "pg_stat_database_numbackends",
+            "legendFormat": "Active connections"
+          }
+        ]
+      },
+      {
+        "title": "Memory Usage",
+        "type": "graph",
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      },
+      {
+        "title": "CPU Usage",
+        "type": "graph",
+        "gridPos": {
+          "x": 12,
+          "y": 16,
+          "w": 12,
+          "h": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total[5m])",
+            "legendFormat": "{{job}}"
+          }
+        ]
+      }
+    ],
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  }
+}
