@@ -229,6 +229,18 @@ cp .env.example .env
 # 编辑.env文件
 
 # 构建和启动
+# 升级docker compose 
+sudo apt remove docker-compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+# 创建插件目录（如果不存在）
+sudo mkdir -p ~/.docker/cli-plugins
+# 下载最新版 Compose Plugin（Linux x86_64）
+curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+# 添加执行权限
+chmod +x ~/.docker/cli-plugins/docker-compose
+
+
 docker-compose -f deployment/docker-compose.prod.yml up -d
 
 # 配置SSL证书
