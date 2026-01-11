@@ -1,7 +1,13 @@
-import axios from 'axios'
+import axios, { AxiosInstance } from 'axios'
 
-const api = axios.create({
-  baseURL: '/api/v1',
+// Resolve base URL from environment; fall back to relative path for dev
+const baseURL =
+  import.meta.env?.VITE_API_URL && import.meta.env.VITE_API_URL.length > 0
+    ? `${import.meta.env.VITE_API_URL}/api/v1`
+    : '/api/v1'
+
+const api: AxiosInstance = axios.create({
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,6 +18,7 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
+      config.headers = config.headers ?? {}
       config.headers.Authorization = `Bearer ${token}`
     }
     return config
