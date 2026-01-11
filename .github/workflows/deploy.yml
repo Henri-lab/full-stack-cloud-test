@@ -1,0 +1,50 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            # 1) 确保代码目录存在
+            if [ ! -d "$HOME/full-stack-cloud-test/.git" ]; then
+              git clone "${GIT_REPO_URL}" "$HOME/full-stack-cloud-test"
+            fi
+
+            cd "$HOME/full-stack-cloud-test"
+
+            # 2) 拉取最新代码
+            git fetch origin
+            git checkout ${GIT_BRANCH}
+            git reset --hard origin/${GIT_BRANCH}
+
+            # 3) 确保 .env 存在（使用已有的 .env.production 初始化一次）
+            if [ -f ".env.production" ] && [ ! -f "./deployment/.env" ]; then
+              cp .env.production ./deployment/.env
+            fi
+
+            # 4) 启动/更新容器
+            cd "$HOME/full-stack-cloud-test"
+            docker-compose \
+              -f deployment/docker-compose.prod.yml \
+              up -d --build
+        env:
+          # 这里的值来自 GitHub Secrets / Variables
+          GIT_REPO_URL: ${{ vars.GIT_REPO_URL }}
+          GIT_BRANCH: ${{ vars.GIT_BRANCH || 'master' }}
+
