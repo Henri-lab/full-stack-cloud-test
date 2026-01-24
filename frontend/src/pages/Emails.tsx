@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import * as OTPAuth from 'otpauth'
 import emailsData from '../resource/emails.json'
 
 interface EmailMeta {
@@ -22,11 +23,63 @@ function Emails() {
   const [emails] = useState<Email[]>(emailsData.emails)
   const [searchTerm, setSearchTerm] = useState('')
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [totpCodes, setTotpCodes] = useState<{ [key: number]: string }>({})
+  const [timeRemaining, setTimeRemaining] = useState(30)
+
+  // Generate TOTP code for a specific email
+  const generateTOTP = (secret: string): string => {
+    try {
+      const totp = new OTPAuth.TOTP({
+        issuer: 'FreeGemini',
+        label: 'Email',
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: secret.toUpperCase().replace(/\s/g, ''),
+      })
+      return totp.generate()
+    } catch (error) {
+      console.error('Error generating TOTP:', error)
+      return 'ERROR'
+    }
+  }
+
+  // Show TOTP code for specific email
+  const showTOTP = (index: number, secret: string) => {
+    const code = generateTOTP(secret)
+    setTotpCodes(prev => ({ ...prev, [index]: code }))
+  }
 
   const filteredEmails = emails.filter(email =>
     email.main.toLowerCase().includes(searchTerm.toLowerCase()) ||
     email.deputy.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // Update time remaining and refresh codes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Math.floor(Date.now() / 1000)
+      const remaining = 30 - (now % 30)
+      setTimeRemaining(remaining)
+
+      // Auto-refresh displayed TOTP codes
+      if (remaining === 30) {
+        setTotpCodes(prev => {
+          const updated: { [key: number]: string } = {}
+          Object.keys(prev).forEach(key => {
+            const idx = parseInt(key)
+            const email = filteredEmails[idx]
+            if (email) {
+              updated[idx] = generateTOTP(email.key_2FA)
+            }
+          })
+          return updated
+        })
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [filteredEmails])
 
   const copyToClipboard = (text: string, fieldId: string) => {
     navigator.clipboard.writeText(text)
@@ -85,6 +138,7 @@ function Emails() {
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">Password</th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">Deputy Email</th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">2FA Key</th>
+              <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">2FA Code</th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">Status</th>
             </tr>
           </thead>
@@ -153,6 +207,43 @@ function Emails() {
                     >
                       {copiedField === `key-${index}` ? 'Copied!' : 'Copy'}
                     </button>
+                  </div>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {totpCodes[index] ? (
+                      <>
+                        <code className="px-3 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 rounded text-white font-mono text-lg font-bold tracking-wider">
+                          {totpCodes[index]}
+                        </code>
+                        <div className="flex flex-col items-center">
+                          <div className="text-xs text-slate-400">{timeRemaining}s</div>
+                          <div className="w-12 h-1 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all"
+                              style={{ width: `${(timeRemaining / 30) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(totpCodes[index], `totp-${index}`)}
+                          className={`px-2 py-1 text-xs font-semibold rounded transition-all ${
+                            copiedField === `totp-${index}`
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                              : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:scale-105'
+                          }`}
+                        >
+                          {copiedField === `totp-${index}` ? 'Copied!' : 'Copy'}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => showTOTP(index, email.key_2FA)}
+                        className="px-3 py-1 text-xs font-semibold rounded bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 transition-all"
+                      >
+                        Generate
+                      </button>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-4">{getStatusBadge(email.meta)}</td>
