@@ -1,0 +1,46 @@
+{
+    "emails": [
+        {
+            "main": "add358006@gmail.com",
+            "password": "dfgewrewrfdsg",
+            "deputy": "1842208351@qq.com",
+            "key_2FA": "SBDRNFUCDCM5VN7KULEIJBSWIV55NZ34",
+            "meta": {
+                "banned": false,
+                "created_at": "",
+                "updated_at": "",
+                "price": 0,
+                "sold": false,
+                "need_repair": false
+            }
+        },
+        {
+            "main": "FleurVenema212@gmail.com",
+            "password": "fr9qaglmi",
+            "deputy": "FleurVenema21239323@longthan.xyz",
+            "key_2FA": "25hagjkm74qixgyolz37ezgptn2ii52q",
+            "meta": {
+                "banned": false,
+                "created_at": "",
+                "updated_at": "",
+                "price": 0,
+                "sold": false,
+                "need_repair": false
+            }
+        },
+        {
+            "main": "LindhaAdr@gmail.com",
+            "password": "d0itgie0qm3",
+            "deputy": "LindhaAdr92492@phuhi.site",
+            "key_2FA": "u4nq6yzhh4h7ppoixyoqswfhs4sm4ckd",
+            "meta": {
+                "banned": false,
+                "created_at": "",
+                "updated_at": "",
+                "price": 0,
+                "sold": false,
+                "need_repair": false
+            }
+        }
+    ]
+}
