@@ -27,3 +27,19 @@ type Task struct {
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 }
+
+type Email struct {
+	ID         uint           `gorm:"primarykey" json:"id"`
+	Main       string         `gorm:"uniqueIndex;not null" json:"main"`
+	Password   string         `gorm:"not null" json:"password"`
+	Deputy     string         `json:"deputy"`
+	Key2FA     string         `gorm:"column:key_2fa" json:"key_2FA"`
+	Banned     bool           `gorm:"default:false" json:"-"`
+	Price      int            `gorm:"default:0" json:"-"`
+	Sold       bool           `gorm:"default:false" json:"-"`
+	NeedRepair bool           `gorm:"default:false" json:"-"`
+	Source     string         `gorm:"column:source" json:"-"`
+	CreatedAt  time.Time      `json:"-"`
+	UpdatedAt  time.Time      `json:"-"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+}

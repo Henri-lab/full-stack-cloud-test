@@ -37,7 +37,7 @@ func main() {
 	// Health check
 	router.GET("/api/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"status": "ok",
+			"status":   "ok",
 			"database": "connected",
 		})
 	})
@@ -64,6 +64,18 @@ func main() {
 			tasks.POST("", taskHandler.CreateTask)
 			tasks.PUT("/:id", taskHandler.UpdateTask)
 			tasks.DELETE("/:id", taskHandler.DeleteTask)
+		}
+
+		// Email routes
+		emails := v1.Group("/emails")
+		emails.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		{
+			emailHandler := handlers.NewEmailHandler(db)
+			emails.GET("", emailHandler.GetEmails)
+			emails.GET("/:id", emailHandler.GetEmail)
+			emails.POST("", emailHandler.CreateEmail)
+			emails.PUT("/:id", emailHandler.UpdateEmail)
+			emails.DELETE("/:id", emailHandler.DeleteEmail)
 		}
 	}
 

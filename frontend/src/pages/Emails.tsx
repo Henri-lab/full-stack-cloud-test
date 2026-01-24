@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import * as OTPAuth from 'otpauth'
-import emailsData from '../resource/emails.json'
+import api from '../services/api'
 
 interface EmailMeta {
   banned: boolean
@@ -9,9 +9,11 @@ interface EmailMeta {
   price: number
   sold: boolean
   need_repair: boolean
+  from?: string
 }
 
 interface Email {
+  id: number
   main: string
   password: string
   deputy: string
@@ -20,7 +22,9 @@ interface Email {
 }
 
 function Emails() {
-  const [emails] = useState<Email[]>(emailsData.emails)
+  const [emails, setEmails] = useState<Email[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [totpCodes, setTotpCodes] = useState<{ [key: number]: string }>({})
@@ -55,6 +59,32 @@ function Emails() {
     email.deputy.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  useEffect(() => {
+    let isMounted = true
+    const fetchEmails = async () => {
+      try {
+        const response = await api.get<Email[]>('/emails')
+        if (isMounted) {
+          setEmails(response.data)
+        }
+      } catch (err) {
+        console.error('Failed to load emails', err)
+        if (isMounted) {
+          setError('Failed to load emails.')
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchEmails()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   // Update time remaining and refresh codes
   useEffect(() => {
     const interval = setInterval(() => {
@@ -67,10 +97,10 @@ function Emails() {
         setTotpCodes(prev => {
           const updated: { [key: number]: string } = {}
           Object.keys(prev).forEach(key => {
-            const idx = parseInt(key)
-            const email = filteredEmails[idx]
+            const id = parseInt(key, 10)
+            const email = filteredEmails.find(item => item.id === id)
             if (email) {
-              updated[idx] = generateTOTP(email.key_2FA)
+              updated[id] = generateTOTP(email.key_2FA)
             }
           })
           return updated
@@ -82,6 +112,9 @@ function Emails() {
   }, [filteredEmails])
 
   const copyToClipboard = (text: string, fieldId: string) => {
+    if (!text) {
+      return
+    }
     navigator.clipboard.writeText(text)
     setCopiedField(fieldId)
     setTimeout(() => setCopiedField(null), 1500)
@@ -128,6 +161,13 @@ function Emails() {
         />
       </div>
 
+      {loading && (
+        <div className="mb-6 text-slate-400">Loading emails...</div>
+      )}
+      {error && (
+        <div className="mb-6 text-red-400">{error}</div>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto rounded-xl shadow-2xl">
         <table className="w-full bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl overflow-hidden">
@@ -145,7 +185,7 @@ function Emails() {
           <tbody className="divide-y divide-slate-700">
             {filteredEmails.map((email, index) => (
               <tr
-                key={index}
+                key={email.id}
                 className={`transition-colors ${email.meta.banned ? 'bg-red-500/5 hover:bg-red-500/10' : 'hover:bg-indigo-500/5'}`}
               >
                 <td className="px-4 py-4 text-indigo-400 font-bold">{index + 1}</td>
@@ -153,14 +193,14 @@ function Emails() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-white font-medium">{email.main}</span>
                     <button
-                      onClick={() => copyToClipboard(email.main, `main-${index}`)}
+                      onClick={() => copyToClipboard(email.main, `main-${email.id}`)}
                       className={`px-2 py-1 text-xs font-semibold rounded transition-all ${
-                        copiedField === `main-${index}`
+                        copiedField === `main-${email.id}`
                           ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
                           : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:scale-105'
                       }`}
                     >
-                      {copiedField === `main-${index}` ? 'Copied!' : 'Copy'}
+                      {copiedField === `main-${email.id}` ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
                 </td>
@@ -168,14 +208,14 @@ function Emails() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <code className="px-2 py-1 bg-slate-700 rounded text-pink-400 font-mono text-sm">{email.password}</code>
                     <button
-                      onClick={() => copyToClipboard(email.password, `pwd-${index}`)}
+                      onClick={() => copyToClipboard(email.password, `pwd-${email.id}`)}
                       className={`px-2 py-1 text-xs font-semibold rounded transition-all ${
-                        copiedField === `pwd-${index}`
+                        copiedField === `pwd-${email.id}`
                           ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
                           : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:scale-105'
                       }`}
                     >
-                      {copiedField === `pwd-${index}` ? 'Copied!' : 'Copy'}
+                      {copiedField === `pwd-${email.id}` ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
                 </td>
@@ -183,14 +223,14 @@ function Emails() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-slate-400 text-sm">{email.deputy}</span>
                     <button
-                      onClick={() => copyToClipboard(email.deputy, `deputy-${index}`)}
+                      onClick={() => copyToClipboard(email.deputy, `deputy-${email.id}`)}
                       className={`px-2 py-1 text-xs font-semibold rounded transition-all ${
-                        copiedField === `deputy-${index}`
+                        copiedField === `deputy-${email.id}`
                           ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
                           : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:scale-105'
                       }`}
                     >
-                      {copiedField === `deputy-${index}` ? 'Copied!' : 'Copy'}
+                      {copiedField === `deputy-${email.id}` ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
                 </td>
@@ -198,23 +238,23 @@ function Emails() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <code className="px-2 py-1 bg-slate-700 rounded text-pink-400 font-mono text-sm">{email.key_2FA}</code>
                     <button
-                      onClick={() => copyToClipboard(email.key_2FA, `key-${index}`)}
+                      onClick={() => copyToClipboard(email.key_2FA, `key-${email.id}`)}
                       className={`px-2 py-1 text-xs font-semibold rounded transition-all ${
-                        copiedField === `key-${index}`
+                        copiedField === `key-${email.id}`
                           ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
                           : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:scale-105'
                       }`}
                     >
-                      {copiedField === `key-${index}` ? 'Copied!' : 'Copy'}
+                      {copiedField === `key-${email.id}` ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-2 flex-wrap">
-                    {totpCodes[index] ? (
+                    {totpCodes[email.id] ? (
                       <>
                         <code className="px-3 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 rounded text-white font-mono text-lg font-bold tracking-wider">
-                          {totpCodes[index]}
+                          {totpCodes[email.id]}
                         </code>
                         <div className="flex flex-col items-center">
                           <div className="text-xs text-slate-400">{timeRemaining}s</div>
@@ -226,19 +266,19 @@ function Emails() {
                           </div>
                         </div>
                         <button
-                          onClick={() => copyToClipboard(totpCodes[index], `totp-${index}`)}
+                          onClick={() => copyToClipboard(totpCodes[email.id], `totp-${email.id}`)}
                           className={`px-2 py-1 text-xs font-semibold rounded transition-all ${
-                            copiedField === `totp-${index}`
+                            copiedField === `totp-${email.id}`
                               ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
                               : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:scale-105'
                           }`}
                         >
-                          {copiedField === `totp-${index}` ? 'Copied!' : 'Copy'}
+                          {copiedField === `totp-${email.id}` ? 'Copied!' : 'Copy'}
                         </button>
                       </>
                     ) : (
                       <button
-                        onClick={() => showTOTP(index, email.key_2FA)}
+                        onClick={() => showTOTP(email.id, email.key_2FA)}
                         className="px-3 py-1 text-xs font-semibold rounded bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 transition-all"
                       >
                         Generate

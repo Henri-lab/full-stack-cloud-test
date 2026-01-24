@@ -40,7 +40,7 @@ fullStack/
 │       │   ├── Tasks.tsx            # 任务管理
 │       │   └── Emails.tsx           # 邮箱管理 (含 TOTP)
 │       ├── services/api.ts          # Axios API 客户端
-│       └── resource/emails.json     # 邮箱数据源
+│       └── resource/emails.json     # 邮箱数据模板（真实数据在数据库）
 └── deployment/
     ├── docker-compose.yml           # 开发环境
     └── docker-compose.prod.yml      # 生产环境
@@ -60,6 +60,13 @@ fullStack/
 - `PUT /api/v1/tasks/:id` - 更新任务
 - `DELETE /api/v1/tasks/:id` - 删除任务
 
+### 邮箱 (需要 JWT Token)
+- `GET /api/v1/emails` - 获取所有邮箱
+- `GET /api/v1/emails/:id` - 获取单个邮箱
+- `POST /api/v1/emails` - 创建邮箱
+- `PUT /api/v1/emails/:id` - 更新邮箱
+- `DELETE /api/v1/emails/:id` - 删除邮箱
+
 ### 健康检查
 - `GET /api/health` - 服务状态
 
@@ -73,6 +80,11 @@ ID, Username, Email, PasswordHash, CreatedAt, UpdatedAt, DeletedAt
 ### Task
 ```go
 ID, Title, Description, Status(open/in_progress/completed), CreatorID, CreatedAt, UpdatedAt, DeletedAt
+```
+
+### Email
+```go
+ID, Main, Password, Deputy, Key2FA, Banned, Price, Sold, NeedRepair, Source, CreatedAt, UpdatedAt, DeletedAt
 ```
 
 ## 安全特性 (已实现)
@@ -151,12 +163,13 @@ cd frontend && npm run build
 | JWT 中间件 | `backend/internal/middleware/middleware.go:96-129` |
 | 配置加载 | `backend/internal/config/config.go` |
 | 前端 API | `frontend/src/services/api.ts` |
-| 邮箱数据 | `frontend/src/resource/emails.json` |
+| 邮箱数据模板 | `frontend/src/resource/emails.json` |
+| 邮箱 API | `backend/internal/handlers/email.go` |
 
 ## 待办事项
 
 - [ ] 添加 refresh token 机制
-- [ ] 实现邮箱数据后端存储
+- [x] 实现邮箱数据后端存储
 - [ ] 添加用户角色权限
 - [ ] 实现审计日志
 - [ ] 添加 2FA 登录支持
