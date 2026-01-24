@@ -12,18 +12,26 @@ interface LoginResponse {
 }
 
 interface ErrorResponse {
-  message: string
+  error: string
+  remaining_attempts?: number
 }
 
 function Login({ setUser }: LoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null)
+  const [isBlocked, setIsBlocked] = useState(false)
   const navigate = useNavigate()
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
+
+    if (isBlocked) {
+      setError('Too many failed attempts. Please try again later.')
+      return
+    }
 
     try {
       const response = await api.post<LoginResponse>('/auth/login', { email, password })
@@ -31,10 +39,21 @@ function Login({ setUser }: LoginProps) {
 
       localStorage.setItem('token', token)
       setUser({ token })
+      setRemainingAttempts(null)
       navigate('/tasks')
     } catch (err) {
       const axiosError = err as AxiosError<ErrorResponse>
-      setError(axiosError.response?.data?.message || 'Login failed')
+
+      if (axiosError.response?.status === 429) {
+        setIsBlocked(true)
+        setError('Too many failed login attempts. Please try again in 15 minutes.')
+      } else {
+        const remaining = axiosError.response?.data?.remaining_attempts
+        if (remaining !== undefined) {
+          setRemainingAttempts(remaining)
+        }
+        setError(axiosError.response?.data?.error || 'Login failed')
+      }
     }
   }
 
@@ -54,7 +73,8 @@ function Login({ setUser }: LoginProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            disabled={isBlocked}
+            className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all disabled:opacity-50"
           />
         </div>
         <div>
@@ -67,19 +87,26 @@ function Login({ setUser }: LoginProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            disabled={isBlocked}
+            className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all disabled:opacity-50"
           />
         </div>
         {error && (
           <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
             {error}
+            {remainingAttempts !== null && remainingAttempts > 0 && (
+              <p className="mt-1 text-xs">
+                Remaining attempts: {remainingAttempts}
+              </p>
+            )}
           </div>
         )}
         <button
           type="submit"
-          className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-500 hover:to-purple-500 transition-all shadow-lg hover:shadow-indigo-500/25"
+          disabled={isBlocked}
+          className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-500 hover:to-purple-500 transition-all shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Login
+          {isBlocked ? 'Temporarily Blocked' : 'Login'}
         </button>
       </form>
     </div>

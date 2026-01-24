@@ -31,7 +31,7 @@ func main() {
 	router := gin.Default()
 
 	// Middleware
-	router.Use(middleware.CORS())
+	router.Use(middleware.CORS(cfg.Environment))
 	router.Use(middleware.Logger())
 
 	// Health check

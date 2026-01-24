@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -9,12 +10,50 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func CORS() gin.HandlerFunc {
+func CORS(environment string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		allowedOrigin := os.Getenv("CORS_ORIGIN")
+
+		// In production, CORS_ORIGIN must be explicitly set
+		if environment == "production" && allowedOrigin == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "CORS not configured"})
+			c.Abort()
+			return
+		}
+
+		// Default to localhost for development only
+		if allowedOrigin == "" {
+			allowedOrigin = "http://localhost:3000,http://localhost:5173"
+		}
+
+		origin := c.Request.Header.Get("Origin")
+
+		// Support multiple origins separated by comma
+		origins := strings.Split(allowedOrigin, ",")
+		originAllowed := false
+		for _, o := range origins {
+			if strings.TrimSpace(o) == origin {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				originAllowed = true
+				break
+			}
+		}
+
+		// In production, reject requests from non-allowed origins
+		if environment == "production" && origin != "" && !originAllowed {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Origin not allowed"})
+			c.Abort()
+			return
+		}
+
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		// Security headers
+		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+		c.Writer.Header().Set("X-Frame-Options", "DENY")
+		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
