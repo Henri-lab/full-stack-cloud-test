@@ -24,6 +24,9 @@ build/
 bin/
 *.local
 
+# Data files
+frontend/src/resource/emails.json
+
 # IDE
 .vscode/*
 !.vscode/extensions.json
