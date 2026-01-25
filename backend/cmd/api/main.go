@@ -90,6 +90,30 @@ func main() {
 			emails.DELETE("/:id", emailHandler.DeleteEmail)
 		}
 
+		// Account platform routes (subscription required)
+		accounts := v1.Group("/accounts")
+		accounts.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		accounts.Use(middleware.SubscriptionMiddleware(db))
+		{
+			accountHandler := handlers.NewAccountHandler(db)
+			accounts.GET("", accountHandler.ListAccounts)
+			accounts.POST("/temporary/claim", accountHandler.ClaimTemporary)
+			accounts.POST("/temporary/release", accountHandler.ReleaseTemporary)
+			accounts.POST("/exclusive/purchase", accountHandler.PurchaseExclusive)
+			accounts.GET("/exclusive/:id/credentials", accountHandler.GetExclusiveCredentials)
+			accounts.POST("/family/bind", accountHandler.BindFamily)
+			accounts.POST("/family/unbind", accountHandler.UnbindFamily)
+		}
+
+		// Subscription routes
+		subscriptions := v1.Group("/subscriptions")
+		subscriptions.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		{
+			subscriptionHandler := handlers.NewSubscriptionHandler(db)
+			subscriptions.GET("/me", subscriptionHandler.GetMySubscription)
+			subscriptions.POST("/activate", subscriptionHandler.ActivateSubscription)
+		}
+
 		// Payment routes
 		payments := v1.Group("/payments")
 		payments.Use(middleware.AuthMiddleware(cfg.JWTSecret))

@@ -26,6 +26,13 @@ func Migrate(db *gorm.DB) error {
 		&models.Email{},
 		&models.EmailImport{},
 		&models.EmailFamily{},
+		&models.Account{},
+		&models.TemporaryUsage{},
+		&models.ExclusivePurchase{},
+		&models.FamilyGroup{},
+		&models.FamilyBinding{},
+		&models.Subscription{},
+		&models.AuditLog{},
 		&models.Payment{},
 		&models.LicenseKey{},
 	)

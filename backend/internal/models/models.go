@@ -68,19 +68,89 @@ type EmailFamily struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+// Account platform models
+type Account struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	Type      string         `gorm:"not null;index" json:"type"` // temporary, exclusive, family
+	Main      string         `gorm:"not null;index" json:"main"`
+	Password  string         `json:"password"`
+	Key2FA    string         `gorm:"column:key_2fa" json:"key_2FA"`
+	Status    string         `gorm:"default:'available'" json:"status"` // available, locked, sold, retired
+	Source    string         `gorm:"column:source" json:"source"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type TemporaryUsage struct {
+	ID         uint       `gorm:"primarykey" json:"id"`
+	AccountID  uint       `gorm:"not null;index" json:"account_id"`
+	UserID     uint       `gorm:"not null;index" json:"user_id"`
+	StartedAt  time.Time  `gorm:"not null" json:"started_at"`
+	ExpiresAt  time.Time  `gorm:"not null;index" json:"expires_at"`
+	ReturnedAt *time.Time `json:"returned_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
+type ExclusivePurchase struct {
+	ID          uint      `gorm:"primarykey" json:"id"`
+	AccountID   uint      `gorm:"not null;uniqueIndex" json:"account_id"`
+	UserID      uint      `gorm:"not null;index" json:"user_id"`
+	PaymentID   *uint     `json:"payment_id"`
+	PurchasedAt time.Time `gorm:"not null" json:"purchased_at"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type FamilyGroup struct {
+	ID        uint      `gorm:"primarykey" json:"id"`
+	AccountID uint      `gorm:"not null;uniqueIndex" json:"account_id"`
+	Capacity  int       `gorm:"default:5" json:"capacity"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type FamilyBinding struct {
+	ID                uint           `gorm:"primarykey" json:"id"`
+	FamilyGroupID     uint           `gorm:"not null;index" json:"family_group_id"`
+	UserID            uint           `gorm:"not null;index" json:"user_id"`
+	MemberEmail       string         `gorm:"not null" json:"member_email"`
+	MemberPasswordEnc string         `gorm:"not null" json:"member_password_enc"`
+	CreatedAt         time.Time      `json:"created_at"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type Subscription struct {
+	ID        uint      `gorm:"primarykey" json:"id"`
+	UserID    uint      `gorm:"not null;index" json:"user_id"`
+	Plan      string    `gorm:"not null" json:"plan"` // monthly, yearly, etc
+	ExpiresAt time.Time `gorm:"not null;index" json:"expires_at"`
+	Status    string    `gorm:"default:'active'" json:"status"` // active, expired, canceled
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type AuditLog struct {
+	ID         uint      `gorm:"primarykey" json:"id"`
+	UserID     uint      `gorm:"not null;index" json:"user_id"`
+	Action     string    `gorm:"not null;index" json:"action"`
+	TargetType string    `gorm:"not null;index" json:"target_type"`
+	TargetID   string    `gorm:"not null" json:"target_id"`
+	Metadata   string    `gorm:"type:text" json:"metadata"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 // Payment 支付订单
 type Payment struct {
 	ID            uint           `gorm:"primarykey" json:"id"`
 	UserID        uint           `gorm:"not null;index" json:"user_id"`
 	OrderNo       string         `gorm:"uniqueIndex;not null" json:"order_no"`
-	Amount        int            `gorm:"not null" json:"amount"`                                    // 金额（分）
-	ProductType   string         `gorm:"not null" json:"product_type"`                             // basic, pro, enterprise
-	QuotaAmount   int            `gorm:"not null" json:"quota_amount"`                             // 购买的次数额度
-	Status        string         `gorm:"default:'pending'" json:"status"`                          // pending, paid, expired, refunded
-	PaymentMethod string         `json:"payment_method"`                                           // alipay, wechat
-	TransactionID string         `gorm:"index" json:"transaction_id"`                              // 第三方支付流水号
+	Amount        int            `gorm:"not null" json:"amount"`          // 金额（分）
+	ProductType   string         `gorm:"not null" json:"product_type"`    // basic, pro, enterprise
+	QuotaAmount   int            `gorm:"not null" json:"quota_amount"`    // 购买的次数额度
+	Status        string         `gorm:"default:'pending'" json:"status"` // pending, paid, expired, refunded
+	PaymentMethod string         `json:"payment_method"`                  // alipay, wechat
+	TransactionID string         `gorm:"index" json:"transaction_id"`     // 第三方支付流水号
 	PaidAt        *time.Time     `json:"paid_at"`
-	ExpiredAt     time.Time      `json:"expired_at"`                                               // 订单过期时间（15分钟）
+	ExpiredAt     time.Time      `json:"expired_at"` // 订单过期时间（15分钟）
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
@@ -92,10 +162,10 @@ type LicenseKey struct {
 	UserID      uint           `gorm:"not null;index" json:"user_id"`
 	PaymentID   uint           `gorm:"not null;index" json:"payment_id"`
 	KeyCode     string         `gorm:"uniqueIndex;not null" json:"key_code"`
-	ProductType string         `gorm:"not null" json:"product_type"`                  // basic, pro, enterprise
-	QuotaTotal  int            `gorm:"not null" json:"quota_total"`                   // 总次数
-	QuotaUsed   int            `gorm:"default:0" json:"quota_used"`                   // 已使用次数
-	Status      string         `gorm:"default:'active'" json:"status"`                // active, exhausted, revoked
+	ProductType string         `gorm:"not null" json:"product_type"`   // basic, pro, enterprise
+	QuotaTotal  int            `gorm:"not null" json:"quota_total"`    // 总次数
+	QuotaUsed   int            `gorm:"default:0" json:"quota_used"`    // 已使用次数
+	Status      string         `gorm:"default:'active'" json:"status"` // active, exhausted, revoked
 	ActivatedAt *time.Time     `json:"activated_at"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
