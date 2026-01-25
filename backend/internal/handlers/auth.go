@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -90,11 +89,15 @@ func (rl *RateLimiter) GetRemainingAttempts(ip string) int {
 }
 
 type AuthHandler struct {
-	db *gorm.DB
+	db        *gorm.DB
+	jwtSecret string
 }
 
-func NewAuthHandler(db *gorm.DB) *AuthHandler {
-	return &AuthHandler{db: db}
+func NewAuthHandler(db *gorm.DB, jwtSecret string) *AuthHandler {
+	return &AuthHandler{
+		db:        db,
+		jwtSecret: jwtSecret,
+	}
 }
 
 type RegisterRequest struct {
@@ -263,8 +266,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 days
 	})
 
-	jwtSecret := getJWTSecret()
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString([]byte(h.jwtSecret))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
@@ -278,14 +280,6 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"email":    user.Email,
 		},
 	})
-}
-
-func getJWTSecret() string {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		panic("JWT_SECRET environment variable is required")
-	}
-	return secret
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {

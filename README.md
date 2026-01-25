@@ -1,6 +1,345 @@
-# FullStack Application
+# FreeGemini
 
-一个最小化的全栈应用系统，包含前端React、后端Go、数据库PostgreSQL、自动化运维和监控系统。
+一个完整的全栈应用，包含用户认证、任务管理和邮箱账号管理功能。
+
+## ✨ 特性
+
+- 🔐 **用户认证** - 注册、登录、JWT Token 认证
+- 📋 **任务管理** - 完整的 CRUD 操作
+- 📧 **邮箱管理** - 邮箱账号管理 + 批量导入
+- 👨‍👩‍👧‍👦 **Family 邮箱** - 每个邮箱可关联多个 family 账号
+- 🔑 **TOTP 支持** - 动态验证码生成
+- 🛡️ **安全加固** - 密码强度验证、登录限流、CORS 保护
+- 📦 **批量导入** - JSON 文件批量导入邮箱数据
+- 🐳 **Docker 支持** - 一键部署
+
+## 🚀 快速开始
+
+### 前置要求
+
+- Go 1.24+
+- Node.js 18+
+- PostgreSQL 15+
+- (可选) Docker & Docker Compose
+
+### 开发环境
+
+#### 方式 1: 使用启动脚本（推荐）
+
+```bash
+# 启动所有服务
+./start-dev.sh
+
+# 停止所有服务
+./stop-dev.sh
+```
+
+#### 方式 2: 手动启动
+
+```bash
+# 终端 1 - 启动后端
+cd backend
+go run cmd/api/main.go
+
+# 终端 2 - 启动前端
+cd frontend
+npm install
+npm run dev
+```
+
+访问 http://localhost:3000
+
+### Docker 部署
+
+```bash
+cd deployment
+docker-compose up -d
+```
+
+## 📚 文档
+
+- [项目文档](CLAUDE.md) - 完整的项目结构和技术细节
+- [API 文档](API_DOCS.md) - RESTful API 接口说明
+- [导入指南](IMPORT_GUIDE.md) - 邮箱批量导入使用指南
+
+## 🏗️ 技术栈
+
+### 后端
+- **语言**: Go 1.24
+- **框架**: Gin
+- **ORM**: GORM
+- **数据库**: PostgreSQL 15
+- **缓存**: Redis 7
+- **认证**: JWT
+
+### 前端
+- **框架**: React 18
+- **语言**: TypeScript
+- **构建工具**: Vite
+- **样式**: Tailwind CSS
+- **HTTP 客户端**: Axios
+- **2FA**: OTPAuth
+
+### 部署
+- **容器化**: Docker + Docker Compose
+- **反向代理**: Nginx
+- **监控**: Prometheus + Grafana
+
+## 📁 项目结构
+
+```
+fullStack/
+├── backend/                 # Go 后端
+│   ├── cmd/api/            # 应用入口
+│   └── internal/           # 内部包
+│       ├── config/         # 配置管理
+│       ├── database/       # 数据库连接
+│       ├── handlers/       # HTTP 处理器
+│       ├── middleware/     # 中间件
+│       └── models/         # 数据模型
+├── frontend/               # React 前端
+│   └── src/
+│       ├── pages/          # 页面组件
+│       ├── services/       # API 服务
+│       └── resource/       # 静态资源
+├── deployment/             # 部署配置
+│   ├── .env               # 环境变量
+│   ├── docker-compose.yml # Docker 配置
+│   └── nginx/             # Nginx 配置
+├── logs/                   # 日志文件
+├── CLAUDE.md              # 项目文档
+├── API_DOCS.md            # API 文档
+├── IMPORT_GUIDE.md        # 导入指南
+├── test-import.json       # 测试数据
+├── start-dev.sh           # 启动脚本
+└── stop-dev.sh            # 停止脚本
+```
+
+## 🔑 核心功能
+
+### 1. 用户认证
+
+- ✅ 用户注册（密码强度验证）
+- ✅ 用户登录（JWT Token）
+- ✅ 登录限流（5次失败封禁15分钟）
+- ✅ 密码要求：12位+大小写+数字+特殊字符
+
+### 2. 任务管理
+
+- ✅ 创建任务
+- ✅ 查看任务列表
+- ✅ 更新任务状态
+- ✅ 删除任务（软删除）
+
+### 3. 邮箱管理
+
+- ✅ 邮箱 CRUD 操作
+- ✅ 批量导入（JSON 文件）
+- ✅ Family 邮箱关联
+- ✅ TOTP 动态验证码
+- ✅ 状态管理（Active/Banned/Sold/Need Repair）
+
+### 4. 批量导入
+
+支持 JSON 文件批量导入邮箱数据：
+
+```json
+{
+  "emails": [
+    {
+      "main": "test@gmail.com",
+      "password": "TestPass123!",
+      "deputy": "backup@gmail.com",
+      "key_2FA": "JBSWY3DPEHPK3PXP",
+      "meta": {
+        "banned": false,
+        "price": 10,
+        "sold": false,
+        "need_repair": false,
+        "from": "source1"
+      },
+      "familys": [
+        {
+          "email": "family1@gmail.com",
+          "password": "FamilyPass123!",
+          "code": "123456",
+          "contact": "qq:123456;phone:13800138000",
+          "issue": "正常使用"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## 🔒 安全特性
+
+- ✅ **密码哈希**: bcrypt (cost=12)
+- ✅ **JWT 认证**: HMAC-SHA256 签名
+- ✅ **登录限流**: 5次失败封禁15分钟
+- ✅ **CORS 保护**: 生产环境白名单
+- ✅ **SQL 注入防护**: GORM 参数化查询
+- ✅ **XSS 防护**: React 自动转义
+- ✅ **密码强度**: 12位+大小写+数字+特殊字符
+
+## 📊 API 端点
+
+### 认证
+- `POST /api/v1/auth/register` - 注册
+- `POST /api/v1/auth/login` - 登录
+- `POST /api/v1/auth/logout` - 登出
+
+### 任务（需要认证）
+- `GET /api/v1/tasks` - 获取所有任务
+- `POST /api/v1/tasks` - 创建任务
+- `PUT /api/v1/tasks/:id` - 更新任务
+- `DELETE /api/v1/tasks/:id` - 删除任务
+
+### 邮箱（需要认证）
+- `GET /api/v1/emails` - 获取所有邮箱
+- `POST /api/v1/emails` - 创建邮箱
+- `POST /api/v1/emails/import` - 批量导入
+- `PUT /api/v1/emails/:id` - 更新邮箱
+- `DELETE /api/v1/emails/:id` - 删除邮箱
+
+详细 API 文档请查看 [API_DOCS.md](API_DOCS.md)
+
+## 🧪 测试
+
+### 测试导入功能
+
+项目包含测试数据文件 `test-import.json`：
+
+```bash
+# 1. 启动服务
+./start-dev.sh
+
+# 2. 注册并登录
+# 访问 http://localhost:3000
+
+# 3. 进入 Emails 页面
+
+# 4. 点击 "Import JSON" 上传 test-import.json
+
+# 5. 查看导入结果
+```
+
+### 测试 API
+
+```bash
+# 健康检查
+curl http://localhost:8080/api/health
+
+# 注册用户
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"test@example.com","password":"MyPassword123!@#"}'
+
+# 登录
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"MyPassword123!@#"}'
+```
+
+### 邮箱数据导入/导出
+
+从 `frontend/src/resource/emails.json` 导入到数据库：
+
+```bash
+cd backend
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/fullstack?sslmode=disable \
+  go run cmd/seed-emails/main.go
+```
+
+从数据库导出为 SQL：
+
+```bash
+cd backend
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/fullstack?sslmode=disable \
+  go run cmd/export-emails/main.go > emails.sql
+```
+
+## 🔧 配置
+
+### 环境变量
+
+在 `deployment/.env` 中配置：
+
+```bash
+# 数据库
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/fullstack?sslmode=disable
+
+# JWT（生产环境必须设置）
+JWT_SECRET=your-secret-key-at-least-32-characters
+
+# 服务器
+PORT=8080
+ENVIRONMENT=development
+
+# CORS（生产环境必须设置）
+CORS_ORIGIN=https://yourdomain.com
+```
+
+### 开发环境
+
+开发环境会自动生成随机 JWT_SECRET，无需手动配置。
+
+### 生产环境
+
+生产环境必须设置：
+- `JWT_SECRET` - 至少32字符
+- `CORS_ORIGIN` - 允许的前端域名
+- `DATABASE_URL` - 使用 SSL 连接
+
+## 📝 开发日志
+
+### v1.0.0 (2025-01-25)
+
+**新增功能**:
+- ✅ 用户认证系统
+- ✅ 任务管理功能
+- ✅ 邮箱管理功能
+- ✅ 邮箱批量导入
+- ✅ EmailFamily 关联管理
+- ✅ TOTP 动态验证码
+- ✅ Docker 部署支持
+
+**安全加固**:
+- ✅ 密码强度验证（12位+复杂度）
+- ✅ 登录限流保护
+- ✅ JWT 认证修复
+- ✅ CORS 配置
+
+**Bug 修复**:
+- ✅ 修复 JWT 认证 panic 问题
+- ✅ 修复 AuthHandler 环境变量依赖
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📄 许可证
+
+MIT License
+
+## 🙏 致谢
+
+- [Gin](https://github.com/gin-gonic/gin) - Go Web 框架
+- [GORM](https://gorm.io/) - Go ORM
+- [React](https://react.dev/) - 前端框架
+- [Vite](https://vitejs.dev/) - 构建工具
+- [Tailwind CSS](https://tailwindcss.com/) - CSS 框架
+
+## 📞 支持
+
+如有问题，请查看：
+- [项目文档](CLAUDE.md)
+- [API 文档](API_DOCS.md)
+- [导入指南](IMPORT_GUIDE.md)
+
+---
+
+Made with ❤️ by FreeGemini Team
 
 ## 技术栈
 

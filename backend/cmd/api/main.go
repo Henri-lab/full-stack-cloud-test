@@ -48,7 +48,7 @@ func main() {
 		// Auth routes
 		auth := v1.Group("/auth")
 		{
-			authHandler := handlers.NewAuthHandler(db)
+			authHandler := handlers.NewAuthHandler(db, cfg.JWTSecret)
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/logout", authHandler.Logout)

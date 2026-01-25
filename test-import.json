@@ -1,0 +1,47 @@
+{
+  "emails": [
+    {
+      "main": "test1@gmail.com",
+      "password": "TestPass123!@#",
+      "deputy": "backup1@gmail.com",
+      "key_2FA": "JBSWY3DPEHPK3PXP",
+      "meta": {
+        "banned": false,
+        "price": 0,
+        "sold": false,
+        "need_repair": false,
+        "from": "source1"
+      },
+      "familys": [
+        {
+          "email": "family1@gmail.com",
+          "password": "FamilyPass123!",
+          "code": "123456",
+          "contact": "qq:123456;phone:13800138000",
+          "issue": "正常使用"
+        },
+        {
+          "email": "family2@gmail.com",
+          "password": "FamilyPass456!",
+          "code": "654321",
+          "contact": "qq:654321;wechat:test123",
+          "issue": "需要验证邮箱"
+        }
+      ]
+    },
+    {
+      "main": "test2@gmail.com",
+      "password": "TestPass456!@#",
+      "deputy": "backup2@gmail.com",
+      "key_2FA": "HXDMVJECJJWSRB3H",
+      "meta": {
+        "banned": false,
+        "price": 10,
+        "sold": false,
+        "need_repair": false,
+        "from": "source2"
+      },
+      "familys": []
+    }
+  ]
+}
