@@ -86,3 +86,40 @@
 - M3: Redis 缓存 + 连接池调优（2-3 天）
 - M4: Refresh Token + 审计日志（4-7 天）
 
+## 账号平台需求落地计划（可配置/稳健）
+
+### 业务规则建议
+- 订阅改为有效期（Subscription），控制账号池“访问权限”
+- 功能消耗型操作（验证/导出/绑定）可选配额（Quota）
+- 家庭组需要解绑后再绑定，可选冷却期
+- 临时账号默认限制同一用户同时占用 1 个，可按档位扩展
+- 纯独享账号提供“再次查看凭证”入口，需审计/二次确认
+
+### 可配置策略设计
+- 规则配置化：订阅时长、家庭组容量、临时占用上限、冷却期
+- 权限分层：订阅门槛 + 功能权限（可与 License/Quota 结合）
+- 特性开关：可灰度启用（如“再次查看凭证”）
+
+### 数据模型建议（主表 + 子表）
+- accounts（统一账号表：type, main, password, key_2fa, status…）
+- temporary_usages（account_id, user_id, started_at, expires_at, returned_at）
+- exclusive_purchases（account_id, user_id, payment_id, purchased_at）
+- family_groups（account_id, capacity）
+- family_bindings（family_group_id, user_id, member_email, member_password_encrypted, created_at）
+- subscriptions（user_id, plan, expires_at, status）
+- audit_logs（user_id, action, target_id, metadata, created_at）
+
+### 接口设计建议（可扩展）
+- GET /accounts（默认脱敏，支持 type 过滤与分页）
+- POST /accounts/temporary/claim | /release
+- POST /accounts/exclusive/purchase
+- POST /accounts/family/bind | /unbind
+- GET /accounts/exclusive/:id/credentials（仅授权用户）
+- GET /subscriptions/me | POST /subscriptions/renew
+
+### 稳健性实施步骤
+1) 抽离规则到配置表/环境变量（避免代码硬改）
+2) 接口参数化（分页/过滤/策略开关）
+3) 核心流程加审计日志
+4) 权限中间件复用（订阅、License、Quota）
+5) 版本化 API（v1/v2）逐步演进
