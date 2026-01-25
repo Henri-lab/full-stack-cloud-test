@@ -28,14 +28,24 @@ interface Email {
   password: string
   deputy: string
   key_2FA: string
+  status: string  // unknown, live, verify, dead
   meta: EmailMeta
   familys: EmailFamily[]
+}
+
+interface EmailImportOption {
+  id: number
+  name: string
+  created_at: string
+  count: number
 }
 
 function Emails() {
   const [emails, setEmails] = useState<Email[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [imports, setImports] = useState<EmailImportOption[]>([])
+  const [selectedImportId, setSelectedImportId] = useState<number | ''>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [totpCodes, setTotpCodes] = useState<{ [key: number]: string }>({})
@@ -43,6 +53,13 @@ function Emails() {
   const [importing, setImporting] = useState(false)
   const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 验证相关状态
+  const [verifying, setVerifying] = useState(false)
+  const [verifyKey, setVerifyKey] = useState('')
+  const [verifyMethod, setVerifyMethod] = useState<'api' | 'smtp'>('smtp')
+  const [showKeyInput, setShowKeyInput] = useState(false)
+  const [selectedEmails, setSelectedEmails] = useState<Set<number>>(new Set())
 
   // Generate TOTP code for a specific email
   const generateTOTP = (secret: string): string => {
@@ -75,16 +92,16 @@ function Emails() {
 
   useEffect(() => {
     let isMounted = true
-    const loadEmails = async () => {
+    const loadImports = async () => {
       try {
-        const response = await api.get<Email[]>('/emails')
+        const response = await api.get<EmailImportOption[]>('/emails/imports')
         if (isMounted) {
-          setEmails(response.data)
+          setImports(response.data)
         }
       } catch (err) {
-        console.error('Failed to load emails', err)
+        console.error('Failed to load imports', err)
         if (isMounted) {
-          setError('Failed to load emails.')
+          setError('Failed to load import history.')
         }
       } finally {
         if (isMounted) {
@@ -93,7 +110,7 @@ function Emails() {
       }
     }
 
-    loadEmails()
+    loadImports()
     return () => {
       isMounted = false
     }
@@ -141,9 +158,12 @@ function Emails() {
     return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white">Active</span>
   }
 
-  const fetchEmails = async () => {
+  const fetchEmails = async (importId?: number) => {
+    setLoading(true)
     try {
-      const response = await api.get<Email[]>('/emails')
+      const response = await api.get<Email[]>('/emails', {
+        params: importId ? { import_id: importId } : undefined,
+      })
       setEmails(response.data)
     } catch (err) {
       console.error('Failed to load emails', err)
@@ -153,8 +173,28 @@ function Emails() {
     }
   }
 
+  const fetchImports = async () => {
+    try {
+      const response = await api.get<EmailImportOption[]>('/emails/imports')
+      setImports(response.data)
+    } catch (err) {
+      console.error('Failed to load imports', err)
+      setError('Failed to load import history.')
+    }
+  }
+
   const handleImportClick = () => {
     fileInputRef.current?.click()
+  }
+
+  const handleDownloadTestJson = () => {
+    const link = document.createElement('a')
+    link.href = '/test-emails.json'
+    link.download = 'test-emails.json'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setImportMessage({ type: 'success', text: 'Test JSON downloaded. Please click "Import JSON" to upload it.' })
   }
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -168,11 +208,13 @@ function Emails() {
     formData.append('file', file)
 
     try {
-      const response = await api.post<{ message: string; imported: number }>('/emails/import', formData, {
+      const response = await api.post<{ message: string; imported: number; import_id: number; import_name: string }>('/emails/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       setImportMessage({ type: 'success', text: `${response.data.message} (${response.data.imported} emails)` })
-      fetchEmails()
+      await fetchImports()
+      setSelectedImportId(response.data.import_id)
+      fetchEmails(response.data.import_id)
     } catch (err) {
       const axiosError = err as AxiosError<{ error: string }>
       setImportMessage({ type: 'error', text: axiosError.response?.data?.error || 'Import failed' })
@@ -181,6 +223,127 @@ function Emails() {
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
+    }
+  }
+
+  const handleLoadImport = () => {
+    if (!selectedImportId) {
+      setImportMessage({ type: 'error', text: 'Please select a saved dataset to load' })
+      return
+    }
+    fetchEmails(selectedImportId)
+  }
+
+  // 验证邮箱功能
+  const handleVerifyEmails = async () => {
+    // API 方法需要 key
+    if (verifyMethod === 'api' && !verifyKey.trim()) {
+      setImportMessage({ type: 'error', text: 'Please enter verification key for API method' })
+      return
+    }
+
+    if (selectedEmails.size === 0) {
+      setImportMessage({ type: 'error', text: 'Please select emails to verify' })
+      return
+    }
+
+    setVerifying(true)
+    setImportMessage(null)
+
+    const emailsToVerify = Array.from(selectedEmails).map(id => {
+      const email = emails.find(e => e.id === id)
+      return email?.main
+    }).filter(Boolean) as string[]
+
+    try {
+      const payload: { mail: string[]; method: string; key?: string } = {
+        mail: emailsToVerify,
+        method: verifyMethod
+      }
+
+      // 只有 API 方法才需要 key
+      if (verifyMethod === 'api') {
+        payload.key = verifyKey
+      }
+
+      const response = await api.post<{ results: Array<{ email: string; status: string; error?: string }>; total: number; method: string }>('/emails/verify', payload)
+
+      const successCount = response.data.results.filter(r => r.status !== 'error').length
+      const methodName = verifyMethod === 'smtp' ? 'SMTP' : 'API'
+      setImportMessage({ type: 'success', text: `Verified ${successCount}/${response.data.total} emails successfully using ${methodName}` })
+
+      // 更新本地邮箱状态
+      setEmails(prevEmails => prevEmails.map(email => {
+        const result = response.data.results.find(r => r.email === email.main)
+        if (result) {
+          return { ...email, status: result.status }
+        }
+        return email
+      }))
+
+      // 清空选择
+      setSelectedEmails(new Set())
+    } catch (err) {
+      const axiosError = err as AxiosError<{ error: string }>
+      setImportMessage({ type: 'error', text: axiosError.response?.data?.error || 'Verification failed' })
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  // 切换邮箱选择
+  const toggleEmailSelection = (id: number) => {
+    setSelectedEmails(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  // 全选/取消全选
+  const toggleSelectAll = () => {
+    if (selectedEmails.size === filteredEmails.length) {
+      setSelectedEmails(new Set())
+    } else {
+      setSelectedEmails(new Set(filteredEmails.map(e => e.id)))
+    }
+  }
+
+  // 批量复制选中的邮箱地址
+  const handleCopySelectedEmails = () => {
+    if (selectedEmails.size === 0) {
+      setImportMessage({ type: 'error', text: 'Please select emails to copy' })
+      return
+    }
+
+    const selectedEmailAddresses = Array.from(selectedEmails)
+      .map(id => emails.find(e => e.id === id)?.main)
+      .filter(Boolean)
+      .join('\n')
+
+    navigator.clipboard.writeText(selectedEmailAddresses).then(() => {
+      setImportMessage({ type: 'success', text: `Copied ${selectedEmails.size} email addresses to clipboard` })
+      setTimeout(() => setImportMessage(null), 3000)
+    }).catch(() => {
+      setImportMessage({ type: 'error', text: 'Failed to copy to clipboard' })
+    })
+  }
+
+  // 获取状态徽章
+  const getVerifyStatusBadge = (status: string) => {
+    switch (status) {
+      case 'live':
+        return <span className="px-2 py-1 text-xs font-semibold rounded bg-green-500/20 text-green-400 border border-green-500/50">Live</span>
+      case 'verify':
+        return <span className="px-2 py-1 text-xs font-semibold rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/50">Verify</span>
+      case 'dead':
+        return <span className="px-2 py-1 text-xs font-semibold rounded bg-red-500/20 text-red-400 border border-red-500/50">Dead</span>
+      default:
+        return <span className="px-2 py-1 text-xs font-semibold rounded bg-gray-500/20 text-gray-400 border border-gray-500/50">Unknown</span>
     }
   }
 
@@ -207,29 +370,121 @@ function Emails() {
         </div>
       </div>
 
-      {/* Search and Import */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <input
-          type="text"
-          placeholder="Search emails..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-md px-4 py-3 bg-slate-800 border-2 border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:shadow-lg focus:shadow-indigo-500/20 transition-all"
-        />
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept=".json"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-        <button
-          onClick={handleImportClick}
-          disabled={importing}
-          className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg hover:shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {importing ? 'Importing...' : 'Import JSON'}
-        </button>
+      {/* Search, Import and Verify */}
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <input
+            type="text"
+            placeholder="Search emails..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full max-w-md px-4 py-3 bg-slate-800 border-2 border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:shadow-lg focus:shadow-indigo-500/20 transition-all"
+          />
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={handleImportClick}
+            disabled={importing}
+            className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg hover:shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {importing ? 'Importing...' : 'Import JSON'}
+          </button>
+          <button
+            onClick={handleDownloadTestJson}
+            className="px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 text-white font-semibold rounded-lg hover:from-slate-500 hover:to-slate-600 transition-all shadow-lg hover:shadow-slate-500/25"
+          >
+            Download Test JSON
+          </button>
+          <button
+            onClick={() => setShowKeyInput(!showKeyInput)}
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-500 hover:to-cyan-500 transition-all shadow-lg hover:shadow-blue-500/25"
+          >
+            {showKeyInput ? 'Hide Verify' : 'Verify Emails'}
+          </button>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <select
+            value={selectedImportId}
+            onChange={(e) => setSelectedImportId(e.target.value ? Number(e.target.value) : '')}
+            className="w-full max-w-md px-4 py-3 bg-slate-800 border-2 border-slate-700 rounded-lg text-white focus:outline-none focus:border-indigo-500 focus:shadow-lg focus:shadow-indigo-500/20 transition-all"
+          >
+            <option value="">Select saved dataset...</option>
+            {imports.map(item => (
+              <option key={item.id} value={item.id}>
+                {item.name} ({item.count}) - {item.created_at ? new Date(item.created_at).toLocaleString() : ''}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleLoadImport}
+            disabled={!selectedImportId}
+            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-500 hover:to-purple-500 transition-all shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Load Dataset
+          </button>
+        </div>
+
+        {/* Verification Options */}
+        {showKeyInput && (
+          <div className="flex flex-col gap-4 p-4 bg-slate-800/50 border border-slate-700 rounded-lg">
+            {/* Method Selection */}
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="verifyMethod"
+                  value="smtp"
+                  checked={verifyMethod === 'smtp'}
+                  onChange={(e) => setVerifyMethod(e.target.value as 'smtp')}
+                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
+                />
+                <span className="text-white font-medium">SMTP Verification</span>
+                <span className="text-xs text-slate-400">(No key needed, slower but reliable)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="verifyMethod"
+                  value="api"
+                  checked={verifyMethod === 'api'}
+                  onChange={(e) => setVerifyMethod(e.target.value as 'api')}
+                  className="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
+                />
+                <span className="text-white font-medium">API Verification</span>
+                <span className="text-xs text-slate-400">(Requires key from gmailver.com)</span>
+              </label>
+            </div>
+
+            {/* Key Input (only for API method) */}
+            {verifyMethod === 'api' && (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                  type="text"
+                  placeholder="Enter verification key from gmailver.com..."
+                  value={verifyKey}
+                  onChange={(e) => setVerifyKey(e.target.value)}
+                  className="flex-1 px-4 py-3 bg-slate-800 border-2 border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:shadow-lg focus:shadow-blue-500/20 transition-all"
+                />
+              </div>
+            )}
+
+            {/* Verify Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleVerifyEmails}
+                disabled={verifying || selectedEmails.size === 0 || (verifyMethod === 'api' && !verifyKey.trim())}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-500 hover:to-cyan-500 transition-all shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {verifying ? 'Verifying...' : `Verify ${selectedEmails.size} Email${selectedEmails.size !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {importMessage && (
@@ -250,12 +505,32 @@ function Emails() {
         <table className="w-full bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl overflow-hidden">
           <thead className="bg-gradient-to-r from-slate-700 to-slate-800">
             <tr>
+              <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedEmails.size === filteredEmails.length && filteredEmails.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-800"
+                  />
+                  {selectedEmails.size > 0 && (
+                    <button
+                      onClick={handleCopySelectedEmails}
+                      className="px-2 py-1 text-xs font-semibold rounded bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg hover:shadow-purple-500/25"
+                      title="Copy selected email addresses"
+                    >
+                      Copy ({selectedEmails.size})
+                    </button>
+                  )}
+                </div>
+              </th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">#</th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">Main Email</th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">Password</th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">Deputy Email</th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">2FA Key</th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">2FA Code</th>
+              <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">Verify Status</th>
               <th className="px-4 py-4 text-left text-xs font-semibold text-indigo-400 uppercase tracking-wider">Status</th>
             </tr>
           </thead>
@@ -265,6 +540,14 @@ function Emails() {
                 key={email.id}
                 className={`transition-colors ${email.meta.banned ? 'bg-red-500/5 hover:bg-red-500/10' : 'hover:bg-indigo-500/5'}`}
               >
+                <td className="px-4 py-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedEmails.has(email.id)}
+                    onChange={() => toggleEmailSelection(email.id)}
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-800"
+                  />
+                </td>
                 <td className="px-4 py-4 text-indigo-400 font-bold">{index + 1}</td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -363,6 +646,7 @@ function Emails() {
                     )}
                   </div>
                 </td>
+                <td className="px-4 py-4">{getVerifyStatusBadge(email.status)}</td>
                 <td className="px-4 py-4">{getStatusBadge(email.meta)}</td>
               </tr>
             ))}

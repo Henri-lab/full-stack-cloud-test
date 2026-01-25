@@ -263,6 +263,9 @@ Authorization: Bearer <token>
 Authorization: Bearer <token>
 ```
 
+**Query Params**:
+- `import_id` (可选) - 过滤指定导入批次的数据
+
 **成功响应** (200):
 ```json
 [
@@ -291,6 +294,29 @@ Authorization: Bearer <token>
         "issue": "正常使用"
       }
     ]
+  }
+]
+```
+
+---
+
+### 获取导入记录列表
+
+**GET** `/emails/imports`
+
+**Headers**:
+```
+Authorization: Bearer <token>
+```
+
+**成功响应** (200):
+```json
+[
+  {
+    "id": 12,
+    "name": "test-emails.json",
+    "created_at": "2025-01-25T10:00:00Z",
+    "count": 3
   }
 ]
 ```

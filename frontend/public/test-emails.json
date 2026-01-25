@@ -1,0 +1,62 @@
+{
+  "emails": [
+    {
+      "main": "demo.user1@example.com",
+      "password": "DemoPass123!",
+      "deputy": "backup.user1@example.com",
+      "key_2FA": "JBSWY3DPEHPK3PXP",
+      "meta": {
+        "banned": false,
+        "price": 0,
+        "sold": false,
+        "need_repair": false,
+        "from": "test-seed"
+      },
+      "familys": [
+        {
+          "email": "family1@example.com",
+          "password": "FamilyPass123!",
+          "code": "123456",
+          "contact": "qq:10001;phone:13800000000",
+          "issue": "正常使用"
+        }
+      ]
+    },
+    {
+      "main": "demo.user2@example.com",
+      "password": "DemoPass456!",
+      "deputy": "",
+      "key_2FA": "MFRGGZDFMZTWQ2LK",
+      "meta": {
+        "banned": false,
+        "price": 10,
+        "sold": true,
+        "need_repair": false,
+        "from": "test-seed"
+      },
+      "familys": []
+    },
+    {
+      "main": "demo.user3@example.com",
+      "password": "DemoPass789!",
+      "deputy": "backup.user3@example.com",
+      "key_2FA": "HXDMVJECJJWSRB3H",
+      "meta": {
+        "banned": false,
+        "price": 0,
+        "sold": false,
+        "need_repair": true,
+        "from": "test-seed"
+      },
+      "familys": [
+        {
+          "email": "family3@example.com",
+          "password": "FamilyPass789!",
+          "code": "",
+          "contact": "wechat:test123",
+          "issue": "需要验证邮箱"
+        }
+      ]
+    }
+  ]
+}

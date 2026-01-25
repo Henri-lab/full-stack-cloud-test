@@ -24,6 +24,7 @@ func Migrate(db *gorm.DB) error {
 		&models.User{},
 		&models.Task{},
 		&models.Email{},
+		&models.EmailImport{},
 		&models.EmailFamily{},
 	)
 }

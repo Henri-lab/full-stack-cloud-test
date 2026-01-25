@@ -30,7 +30,8 @@ npm run dev
 3. 选择准备好的 JSON 文件（参考 `test-import.json`）
 4. 等待导入完成
 5. 查看成功提示：`Import successful (2 emails)`
-6. 页面自动刷新显示导入的邮箱
+6. 在 "Select saved dataset..." 中选择刚导入的数据
+7. 点击 "Load Dataset" 加载到表格
 
 ### 4. 查看邮箱详情
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,7 +35,25 @@ func main() {
 	}
 
 	var emails []models.Email
-	if err := db.Order("id asc").Find(&emails).Error; err != nil {
+	query := db.Order("id asc")
+	if userIDRaw := os.Getenv("EXPORT_USER_ID"); userIDRaw != "" {
+		userIDValue, err := strconv.ParseUint(userIDRaw, 10, 32)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid EXPORT_USER_ID: %v\n", err)
+			os.Exit(1)
+		}
+		query = query.Where("user_id = ?", uint(userIDValue))
+	}
+	if importIDRaw := os.Getenv("EXPORT_IMPORT_ID"); importIDRaw != "" {
+		importIDValue, err := strconv.ParseUint(importIDRaw, 10, 32)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid EXPORT_IMPORT_ID: %v\n", err)
+			os.Exit(1)
+		}
+		query = query.Where("import_id = ?", uint(importIDValue))
+	}
+
+	if err := query.Find(&emails).Error; err != nil {
 		fmt.Fprintf(os.Stderr, "failed to query emails: %v\n", err)
 		os.Exit(1)
 	}

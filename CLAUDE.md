@@ -67,6 +67,7 @@ fullStack/
 - `GET /api/v1/emails/:id` - 获取单个邮箱
 - `POST /api/v1/emails` - 创建邮箱
 - `POST /api/v1/emails/import` - 批量导入邮箱（JSON 文件上传）
+- `POST /api/v1/emails/verify` - 批量验证邮箱状态（live/verify/dead）
 - `PUT /api/v1/emails/:id` - 更新邮箱
 - `DELETE /api/v1/emails/:id` - 删除邮箱
 
@@ -87,8 +88,10 @@ ID, Title, Description, Status(open/in_progress/completed), CreatorID, CreatedAt
 
 ### Email
 ```go
-ID, Main, Password, Deputy, Key2FA, Banned, Price, Sold, NeedRepair, Source, Familys, CreatedAt, UpdatedAt, DeletedAt
+ID, Main, Password, Deputy, Key2FA, Status, Banned, Price, Sold, NeedRepair, Source, Familys, CreatedAt, UpdatedAt, DeletedAt
 ```
+
+**Status 字段**: unknown, live, verify, dead
 
 ### EmailFamily
 ```go
@@ -128,6 +131,46 @@ PORT=8080
 
 ## 最近更新
 
+### 2025-01-25 批量复制功能
+- [x] **批量复制邮箱地址** - 一键复制选中的邮箱到剪贴板
+  - 表头显示 "Copy (N)" 按钮（N 是选中数量）
+  - 自动换行格式，每个邮箱占一行
+  - 成功提示消息，3 秒后自动消失
+  - 方便在其他网站（如 gmailver.com）使用
+- [x] **改进的选择功能**
+  - 表头复选框全选/取消全选
+  - 行复选框单独选择
+  - 实时显示选中数量
+
+### 2025-01-25 SMTP 邮箱验证功能
+- [x] **自己实现的 SMTP 验证** - 无需依赖第三方 API
+  - 直接通过 SMTP 协议验证邮箱可用性
+  - 支持 Gmail, Outlook, Yahoo 等所有邮箱
+  - 多端口尝试（25, 587, 465）
+  - STARTTLS 加密支持
+  - 多 MX 服务器尝试
+- [x] **双验证模式** - 支持 SMTP 和 API 两种验证方式
+  - SMTP 验证：无需 key，直接验证（适合少量验证）
+  - API 验证：需要从 gmailver.com 获取 key（速度快，推荐）
+- [x] **前端验证方法选择**
+  - 单选按钮切换验证方式
+  - SMTP 模式无需输入 key
+  - API 模式显示 key 输入框
+- [x] **修复第三方 API 响应解析** - 正确处理 gmailver.com 返回的数据格式
+- [x] **SMTP 故障排查文档** - 详细的问题诊断和解决方案
+
+### 2025-01-25 邮箱验证功能
+- [x] 邮箱验证状态字段：添加 status 字段（unknown/live/verify/dead）
+- [x] 批量验证接口：`POST /api/v1/emails/verify`
+  - 支持批量验证邮箱状态
+  - 集成第三方 API（gmailver.com）
+  - 自动更新数据库状态
+- [x] 前端验证功能：
+  - Key 输入框（从 gmailver.com 获取）
+  - 邮箱选择功能（单选/全选）
+  - 验证状态显示（Live/Verify/Dead 徽章）
+  - 实时状态更新
+
 ### 2025-01-25 邮箱批量导入功能
 - [x] EmailFamily 模型：支持每个邮箱关联多个 family 邮箱
 - [x] 批量导入接口：`POST /api/v1/emails/import`
@@ -150,6 +193,7 @@ PORT=8080
 - [x] 任务 CRUD
 - [x] 邮箱管理界面
 - [x] 邮箱批量导入（JSON 文件上传）
+- [x] 邮箱批量验证（live/verify/dead 状态）
 - [x] EmailFamily 关联管理
 - [x] TOTP 动态码生成
 - [x] Docker 部署配置
@@ -227,8 +271,14 @@ npm run dev
 | 邮箱数据模板 | `frontend/src/resource/emails.json` |
 | 邮箱 API | `backend/internal/handlers/email.go` |
 | 邮箱导入接口 | `backend/internal/handlers/email.go:298-403` |
-| 邮箱模型 | `backend/internal/models/models.go:31-57` |
+| 邮箱验证接口 | `backend/internal/handlers/email.go:421-470` |
+| SMTP 验证器 | `backend/internal/handlers/email_verify_smtp.go` |
+| SMTP 验证逻辑 | `backend/internal/handlers/email_verify_smtp.go:18-95` |
+| API 验证逻辑 | `backend/internal/handlers/email.go:473-520` |
+| 邮箱模型 | `backend/internal/models/models.go:31-58` |
 | 前端导入组件 | `frontend/src/pages/Emails.tsx:157-182` |
+| 前端验证组件 | `frontend/src/pages/Emails.tsx:205-260` |
+| 前端验证方法选择 | `frontend/src/pages/Emails.tsx:360-410` |
 
 ## 待办事项
 

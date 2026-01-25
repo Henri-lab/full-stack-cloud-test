@@ -61,6 +61,7 @@ docker-compose up -d
 - [项目文档](CLAUDE.md) - 完整的项目结构和技术细节
 - [API 文档](API_DOCS.md) - RESTful API 接口说明
 - [导入指南](IMPORT_GUIDE.md) - 邮箱批量导入使用指南
+- [验证指南](VERIFY_GUIDE.md) - 邮箱验证功能使用指南
 
 ## 🏗️ 技术栈
 
@@ -135,6 +136,7 @@ fullStack/
 
 - ✅ 邮箱 CRUD 操作
 - ✅ 批量导入（JSON 文件）
+- ✅ 批量验证（live/verify/dead 状态）
 - ✅ Family 邮箱关联
 - ✅ TOTP 动态验证码
 - ✅ 状态管理（Active/Banned/Sold/Need Repair）
@@ -199,6 +201,7 @@ fullStack/
 - `GET /api/v1/emails` - 获取所有邮箱
 - `POST /api/v1/emails` - 创建邮箱
 - `POST /api/v1/emails/import` - 批量导入
+- `POST /api/v1/emails/verify` - 批量验证状态
 - `PUT /api/v1/emails/:id` - 更新邮箱
 - `DELETE /api/v1/emails/:id` - 删除邮箱
 
@@ -247,6 +250,7 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 
 ```bash
 cd backend
+SEED_USER_ID=1 \
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/fullstack?sslmode=disable \
   go run cmd/seed-emails/main.go
 ```
@@ -255,6 +259,7 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/fullstack?sslmode=disab
 
 ```bash
 cd backend
+EXPORT_USER_ID=1 \
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/fullstack?sslmode=disable \
   go run cmd/export-emails/main.go > emails.sql
 ```
@@ -300,6 +305,7 @@ CORS_ORIGIN=https://yourdomain.com
 - ✅ 任务管理功能
 - ✅ 邮箱管理功能
 - ✅ 邮箱批量导入
+- ✅ 邮箱批量验证（live/verify/dead）
 - ✅ EmailFamily 关联管理
 - ✅ TOTP 动态验证码
 - ✅ Docker 部署支持

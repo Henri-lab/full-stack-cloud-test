@@ -72,9 +72,11 @@ func main() {
 		{
 			emailHandler := handlers.NewEmailHandler(db)
 			emails.GET("", emailHandler.GetEmails)
+			emails.GET("/imports", emailHandler.GetEmailImports)
 			emails.GET("/:id", emailHandler.GetEmail)
 			emails.POST("", emailHandler.CreateEmail)
 			emails.POST("/import", emailHandler.ImportEmails)
+			emails.POST("/verify", emailHandler.VerifyEmails)
 			emails.PUT("/:id", emailHandler.UpdateEmail)
 			emails.DELETE("/:id", emailHandler.DeleteEmail)
 		}

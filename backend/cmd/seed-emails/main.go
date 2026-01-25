@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"fullstack-backend/internal/database"
 	"fullstack-backend/internal/models"
@@ -73,8 +74,38 @@ func main() {
 		return
 	}
 
+	userIDRaw := os.Getenv("SEED_USER_ID")
+	if userIDRaw == "" {
+		fmt.Fprintln(os.Stderr, "SEED_USER_ID is required to seed emails")
+		os.Exit(1)
+	}
+	userIDValue, err := strconv.ParseUint(userIDRaw, 10, 32)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid SEED_USER_ID: %v\n", err)
+		os.Exit(1)
+	}
+	userID := uint(userIDValue)
+
+	importName := os.Getenv("SEED_IMPORT_NAME")
+	if importName == "" {
+		importName = "seed-emails"
+	}
+
+	tx := db.Begin()
+	importRecord := models.EmailImport{
+		UserID: userID,
+		Name:   importName,
+	}
+	if err := tx.Create(&importRecord).Error; err != nil {
+		tx.Rollback()
+		fmt.Fprintf(os.Stderr, "failed to create import record: %v\n", err)
+		os.Exit(1)
+	}
+
 	for _, entry := range payload.Emails {
 		email := models.Email{
+			UserID:     userID,
+			ImportID:   importRecord.ID,
 			Main:       entry.Main,
 			Password:   entry.Password,
 			Deputy:     entry.Deputy,
@@ -86,9 +117,10 @@ func main() {
 			Source:     entry.Meta.From,
 		}
 
-		if err := db.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "main"}},
+		if err := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "user_id"}, {Name: "main"}},
 			DoUpdates: clause.AssignmentColumns([]string{
+				"import_id",
 				"password",
 				"deputy",
 				"key_2fa",
@@ -100,9 +132,15 @@ func main() {
 				"updated_at",
 			}),
 		}).Create(&email).Error; err != nil {
+			tx.Rollback()
 			fmt.Fprintf(os.Stderr, "failed to upsert %s: %v\n", entry.Main, err)
 			os.Exit(1)
 		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		fmt.Fprintf(os.Stderr, "failed to commit seed transaction: %v\n", err)
+		os.Exit(1)
 	}
 
 	fmt.Printf("seeded %d emails\n", len(payload.Emails))
