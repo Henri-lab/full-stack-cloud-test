@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Tasks from './pages/Tasks'
 import Emails from './pages/Emails'
+import Payment from './pages/Payment'
 
 interface User {
   token: string
@@ -52,6 +53,11 @@ function App() {
                     </Link>
                   </li>
                   <li>
+                    <Link to="/payment" className="text-slate-200 hover:text-indigo-400 transition-colors">
+                      License Key
+                    </Link>
+                  </li>
+                  <li>
                     <button
                       onClick={handleLogout}
                       className="text-slate-200 hover:text-indigo-400 transition-colors bg-transparent border-none cursor-pointer"
@@ -85,6 +91,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/emails" element={<Emails />} />
+            <Route path="/payment" element={<Payment />} />
           </Routes>
         </main>
       </div>

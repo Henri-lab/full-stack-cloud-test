@@ -61,6 +61,11 @@ function Emails() {
   const [showKeyInput, setShowKeyInput] = useState(false)
   const [selectedEmails, setSelectedEmails] = useState<Set<number>>(new Set())
 
+  // License Key 相关状态
+  const [licenseKey, setLicenseKey] = useState('')
+  const [showLicenseInput, setShowLicenseInput] = useState(false)
+  const [licenseStatus, setLicenseStatus] = useState<{ valid: boolean; quota_remaining?: number } | null>(null)
+
   // Generate TOTP code for a specific email
   const generateTOTP = (secret: string): string => {
     try {
@@ -236,6 +241,13 @@ function Emails() {
 
   // 验证邮箱功能
   const handleVerifyEmails = async () => {
+    // 检查 License Key
+    if (!licenseKey.trim()) {
+      setImportMessage({ type: 'error', text: 'Please enter License Key to use verification feature' })
+      setShowLicenseInput(true)
+      return
+    }
+
     // API 方法需要 key
     if (verifyMethod === 'api' && !verifyKey.trim()) {
       setImportMessage({ type: 'error', text: 'Please enter verification key for API method' })
@@ -266,11 +278,86 @@ function Emails() {
         payload.key = verifyKey
       }
 
-      const response = await api.post<{ results: Array<{ email: string; status: string; error?: string }>; total: number; method: string }>('/emails/verify', payload)
+      // 添加 License Key 到请求头
+      const config = {
+        headers: {
+          'X-License-Key': licenseKey
+        }
+      }
+
+      const response = await api.post<{ results: Array<{ email: string; status: string; error?: string }>; total: number; method: string }>('/emails/verify', payload, config)
 
       const successCount = response.data.results.filter(r => r.status !== 'error').length
       const methodName = verifyMethod === 'smtp' ? 'SMTP' : 'API'
       setImportMessage({ type: 'success', text: `Verified ${successCount}/${response.data.total} emails successfully using ${methodName}` })
+
+      // 更新本地邮箱状态
+      setEmails(prevEmails => prevEmails.map(email => {
+        const result = response.data.results.find(r => r.email === email.main)
+        if (result) {
+          return { ...email, status: result.status }
+        }
+        return email
+      }))
+
+      // 清空选择
+      setSelectedEmails(new Set())
+
+      // 刷新 License Key 状态
+      await checkLicenseKey()
+    } catch (err) {
+      const axiosError = err as AxiosError<{ error: string }>
+      const errorMsg = axiosError.response?.data?.error || 'Verification failed'
+      setImportMessage({ type: 'error', text: errorMsg })
+
+      // 如果是 License Key 相关错误，显示输入框
+      if (errorMsg.includes('License Key') || errorMsg.includes('额度')) {
+        setShowLicenseInput(true)
+      }
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  // 检查 License Key
+  const checkLicenseKey = async () => {
+    if (!licenseKey.trim()) {
+      setLicenseStatus(null)
+      return
+    }
+
+    try {
+      const response = await api.post<{ key: any; quota_remaining: number }>('/keys/check', {
+        key_code: licenseKey
+      })
+      setLicenseStatus({
+        valid: true,
+        quota_remaining: response.data.quota_remaining
+      })
+      setImportMessage({ type: 'success', text: `License Key valid! Remaining quota: ${response.data.quota_remaining}` })
+    } catch (err) {
+      const axiosError = err as AxiosError<{ error: string }>
+      setLicenseStatus({ valid: false })
+      setImportMessage({ type: 'error', text: axiosError.response?.data?.error || 'Invalid License Key' })
+    }
+  }
+
+  // 保存 License Key 到 localStorage
+  const saveLicenseKey = () => {
+    if (licenseKey.trim()) {
+      localStorage.setItem('license_key', licenseKey)
+      checkLicenseKey()
+    }
+  }
+
+  // 从 localStorage 加载 License Key
+  useEffect(() => {
+    const savedKey = localStorage.getItem('license_key')
+    if (savedKey) {
+      setLicenseKey(savedKey)
+      // 不自动检查，让用户手动触发
+    }
+  }, [])
 
       // 更新本地邮箱状态
       setEmails(prevEmails => prevEmails.map(email => {
@@ -432,6 +519,47 @@ function Emails() {
         {/* Verification Options */}
         {showKeyInput && (
           <div className="flex flex-col gap-4 p-4 bg-slate-800/50 border border-slate-700 rounded-lg">
+            {/* License Key Input */}
+            <div className="flex flex-col gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span className="text-yellow-400 font-semibold">License Key Required</span>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter your License Key (e.g., XXXX-XXXX-XXXX-XXXX)"
+                  value={licenseKey}
+                  onChange={(e) => setLicenseKey(e.target.value)}
+                  className="flex-1 px-4 py-2 bg-slate-800 border-2 border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500 focus:shadow-lg focus:shadow-yellow-500/20 transition-all font-mono text-sm"
+                />
+                <button
+                  onClick={saveLicenseKey}
+                  disabled={!licenseKey.trim()}
+                  className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 text-white font-semibold rounded-lg hover:from-yellow-500 hover:to-orange-500 transition-all shadow-lg hover:shadow-yellow-500/25 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  Check Key
+                </button>
+                <button
+                  onClick={() => window.location.href = '/payment'}
+                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-lg hover:from-green-500 hover:to-emerald-500 transition-all shadow-lg hover:shadow-green-500/25 whitespace-nowrap"
+                >
+                  Buy Key
+                </button>
+              </div>
+              {licenseStatus && (
+                <div className={`text-sm ${licenseStatus.valid ? 'text-green-400' : 'text-red-400'}`}>
+                  {licenseStatus.valid ? (
+                    <span>✓ Valid License Key - Remaining quota: {licenseStatus.quota_remaining}</span>
+                  ) : (
+                    <span>✗ Invalid License Key</span>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Method Selection */}
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -477,7 +605,7 @@ function Emails() {
             <div className="flex justify-end">
               <button
                 onClick={handleVerifyEmails}
-                disabled={verifying || selectedEmails.size === 0 || (verifyMethod === 'api' && !verifyKey.trim())}
+                disabled={verifying || selectedEmails.size === 0 || (verifyMethod === 'api' && !verifyKey.trim()) || !licenseKey.trim()}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-500 hover:to-cyan-500 transition-all shadow-lg hover:shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 {verifying ? 'Verifying...' : `Verify ${selectedEmails.size} Email${selectedEmails.size !== 1 ? 's' : ''}`}

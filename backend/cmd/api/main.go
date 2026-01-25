@@ -76,9 +76,35 @@ func main() {
 			emails.GET("/:id", emailHandler.GetEmail)
 			emails.POST("", emailHandler.CreateEmail)
 			emails.POST("/import", emailHandler.ImportEmails)
-			emails.POST("/verify", emailHandler.VerifyEmails)
+			// 邮箱验证需要 License Key 和消耗额度
+			emails.POST("/verify",
+				middleware.LicenseKeyMiddleware(db, "email_verify"),
+				middleware.ConsumeQuota(db, 1),
+				emailHandler.VerifyEmails,
+			)
 			emails.PUT("/:id", emailHandler.UpdateEmail)
 			emails.DELETE("/:id", emailHandler.DeleteEmail)
+		}
+
+		// Payment routes
+		payments := v1.Group("/payments")
+		payments.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		{
+			paymentHandler := handlers.NewPaymentHandler(db)
+			payments.GET("/products", paymentHandler.GetProducts)
+			payments.POST("/orders", paymentHandler.CreateOrder)
+			payments.GET("/orders/:order_no", paymentHandler.GetOrder)
+			payments.POST("/notify", paymentHandler.PaymentNotify) // 支付回调
+		}
+
+		// License Key routes
+		keys := v1.Group("/keys")
+		keys.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		{
+			paymentHandler := handlers.NewPaymentHandler(db)
+			keys.GET("", paymentHandler.GetMyKeys)
+			keys.POST("/activate", paymentHandler.ActivateKey)
+			keys.POST("/check", paymentHandler.CheckKey)
 		}
 	}
 

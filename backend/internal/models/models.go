@@ -67,3 +67,37 @@ type EmailFamily struct {
 	Issue     string         `json:"issue"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
+
+// Payment 支付订单
+type Payment struct {
+	ID            uint           `gorm:"primarykey" json:"id"`
+	UserID        uint           `gorm:"not null;index" json:"user_id"`
+	OrderNo       string         `gorm:"uniqueIndex;not null" json:"order_no"`
+	Amount        int            `gorm:"not null" json:"amount"`                                    // 金额（分）
+	ProductType   string         `gorm:"not null" json:"product_type"`                             // basic, pro, enterprise
+	QuotaAmount   int            `gorm:"not null" json:"quota_amount"`                             // 购买的次数额度
+	Status        string         `gorm:"default:'pending'" json:"status"`                          // pending, paid, expired, refunded
+	PaymentMethod string         `json:"payment_method"`                                           // alipay, wechat
+	TransactionID string         `gorm:"index" json:"transaction_id"`                              // 第三方支付流水号
+	PaidAt        *time.Time     `json:"paid_at"`
+	ExpiredAt     time.Time      `json:"expired_at"`                                               // 订单过期时间（15分钟）
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// LicenseKey 授权密钥
+type LicenseKey struct {
+	ID          uint           `gorm:"primarykey" json:"id"`
+	UserID      uint           `gorm:"not null;index" json:"user_id"`
+	PaymentID   uint           `gorm:"not null;index" json:"payment_id"`
+	KeyCode     string         `gorm:"uniqueIndex;not null" json:"key_code"`
+	ProductType string         `gorm:"not null" json:"product_type"`                  // basic, pro, enterprise
+	QuotaTotal  int            `gorm:"not null" json:"quota_total"`                   // 总次数
+	QuotaUsed   int            `gorm:"default:0" json:"quota_used"`                   // 已使用次数
+	Status      string         `gorm:"default:'active'" json:"status"`                // active, exhausted, revoked
+	ActivatedAt *time.Time     `json:"activated_at"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}

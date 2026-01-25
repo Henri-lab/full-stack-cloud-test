@@ -29,9 +29,12 @@ fullStack/
 │       ├── handlers/
 │       │   ├── auth.go              # 认证处理 (注册/登录/登出)
 │       │   ├── task.go              # 任务 CRUD
-│       │   └── email.go             # 邮箱 CRUD + 批量导入
-│       ├── middleware/middleware.go # CORS/Auth/Logger 中间件
-│       └── models/models.go         # User/Task/Email/EmailFamily 模型
+│       │   ├── email.go             # 邮箱 CRUD + 批量导入
+│       │   └── payment.go           # 支付和 License Key 管理
+│       ├── middleware/
+│       │   ├── middleware.go        # CORS/Auth/Logger 中间件
+│       │   └── license.go           # License Key 验证中间件
+│       └── models/models.go         # User/Task/Email/EmailFamily/Payment/LicenseKey 模型
 ├── frontend/
 │   └── src/
 │       ├── pages/
@@ -39,7 +42,8 @@ fullStack/
 │       │   ├── Login.tsx            # 登录页
 │       │   ├── Register.tsx         # 注册页
 │       │   ├── Tasks.tsx            # 任务管理
-│       │   └── Emails.tsx           # 邮箱管理 (含 TOTP + 导入)
+│       │   ├── Emails.tsx           # 邮箱管理 (含 TOTP + 导入 + License Key)
+│       │   └── Payment.tsx          # 支付和 License Key 管理
 │       ├── services/api.ts          # Axios API 客户端
 │       └── resource/emails.json     # 邮箱数据模板（真实数据在数据库）
 └── deployment/
@@ -67,9 +71,18 @@ fullStack/
 - `GET /api/v1/emails/:id` - 获取单个邮箱
 - `POST /api/v1/emails` - 创建邮箱
 - `POST /api/v1/emails/import` - 批量导入邮箱（JSON 文件上传）
-- `POST /api/v1/emails/verify` - 批量验证邮箱状态（live/verify/dead）
+- `POST /api/v1/emails/verify` - 批量验证邮箱状态（需要 License Key）
 - `PUT /api/v1/emails/:id` - 更新邮箱
 - `DELETE /api/v1/emails/:id` - 删除邮箱
+
+### 支付和 License Key (需要 JWT Token)
+- `GET /api/v1/payments/products` - 获取产品列表
+- `POST /api/v1/payments/orders` - 创建支付订单
+- `GET /api/v1/payments/orders/:order_no` - 获取订单详情
+- `POST /api/v1/payments/notify` - 支付回调（模拟）
+- `GET /api/v1/keys` - 获取我的密钥列表
+- `POST /api/v1/keys/activate` - 激活密钥
+- `POST /api/v1/keys/check` - 检查密钥状态
 
 ### 健康检查
 - `GET /api/health` - 服务状态
@@ -97,6 +110,22 @@ ID, Main, Password, Deputy, Key2FA, Status, Banned, Price, Sold, NeedRepair, Sou
 ```go
 ID, EmailID, Email, Password, Code, Contact, Issue, DeletedAt
 ```
+
+### Payment
+```go
+ID, UserID, OrderNo, Amount, ProductType, QuotaAmount, Status, PaymentMethod, TransactionID, PaidAt, ExpiredAt, CreatedAt, UpdatedAt, DeletedAt
+```
+
+**Status 字段**: pending, paid, expired, refunded
+
+### LicenseKey
+```go
+ID, UserID, PaymentID, KeyCode, ProductType, QuotaTotal, QuotaUsed, Status, ActivatedAt, CreatedAt, UpdatedAt, DeletedAt
+```
+
+**Status 字段**: active, exhausted, revoked
+
+**ProductType 字段**: basic, pro, enterprise
 
 ## 安全特性 (已实现)
 
@@ -130,6 +159,35 @@ PORT=8080
 ```
 
 ## 最近更新
+
+### 2025-01-25 付费功能 (License Key 系统)
+- [x] **按次数付费模式** - 用户购买指定次数的使用额度
+  - 基础版：10元 / 100次验证
+  - 专业版：30元 / 500次验证
+  - 企业版：50元 / 1000次验证
+- [x] **在线支付接口** - 支持支付宝/微信支付
+  - 订单管理系统
+  - 支付回调处理
+  - 15分钟订单过期机制
+- [x] **License Key 管理**
+  - 自动生成格式化密钥（XXXX-XXXX-XXXX-XXXX）
+  - 密钥激活和验证
+  - 额度追踪和消耗
+  - 状态管理（active/exhausted/revoked）
+- [x] **功能分级权限**
+  - 基础版：邮箱验证
+  - 专业版：邮箱验证 + 导入 + 任务管理
+  - 企业版：所有功能 + API 访问
+- [x] **前端支付页面**
+  - 产品选择和对比
+  - 收款码展示（支持真实图片）
+  - 订单状态追踪
+  - 我的密钥管理
+- [x] **邮箱验证集成**
+  - 验证功能需要 License Key
+  - 自动消耗额度
+  - 实时显示剩余额度
+  - Key 输入和验证界面
 
 ### 2025-01-25 批量复制功能
 - [x] **批量复制邮箱地址** - 一键复制选中的邮箱到剪贴板
@@ -198,6 +256,10 @@ PORT=8080
 - [x] TOTP 动态码生成
 - [x] Docker 部署配置
 - [x] Prometheus + Grafana 监控
+- [x] **License Key 付费系统**
+- [x] **按次数付费模式**
+- [x] **在线支付接口（支付宝/微信）**
+- [x] **功能分级权限控制**
 
 ## 开发命令
 
@@ -255,6 +317,23 @@ npm run dev
 4. 查看导入结果提示
 5. 刷新页面查看导入的邮箱数据
 
+### 4. 测试付费功能
+1. 登录后点击导航栏的 "License Key"
+2. 在 "购买 Key" 标签页选择产品（基础版/专业版/企业版）
+3. 点击 "立即购买" 创建订单
+4. 扫描收款码或点击 "模拟支付" 按钮
+5. 支付成功后自动生成 License Key
+6. 在 "我的 Key" 标签页查看已购买的密钥
+7. 复制 Key Code 用于邮箱验证功能
+
+### 5. 测试邮箱验证（需要 License Key）
+1. 在 Emails 页面点击 "Verify Emails" 按钮
+2. 输入 License Key 并点击 "Check Key" 验证
+3. 选择验证方法（SMTP 或 API）
+4. 勾选要验证的邮箱
+5. 点击 "Verify" 按钮开始验证
+6. 验证完成后查看状态更新和剩余额度
+
 ## 关键文件位置
 
 | 功能 | 文件 |
@@ -265,6 +344,7 @@ npm run dev
 | 限流器 | `backend/internal/handlers/auth.go:17-90` |
 | CORS 中间件 | `backend/internal/middleware/middleware.go:13-65` |
 | JWT 中间件 | `backend/internal/middleware/middleware.go:96-129` |
+| License Key 中间件 | `backend/internal/middleware/license.go` |
 | 配置加载 | `backend/internal/config/config.go` |
 | JWT 自动生成 | `backend/internal/config/config.go:28-31` |
 | 前端 API | `frontend/src/services/api.ts` |
@@ -275,10 +355,15 @@ npm run dev
 | SMTP 验证器 | `backend/internal/handlers/email_verify_smtp.go` |
 | SMTP 验证逻辑 | `backend/internal/handlers/email_verify_smtp.go:18-95` |
 | API 验证逻辑 | `backend/internal/handlers/email.go:473-520` |
+| 支付 API | `backend/internal/handlers/payment.go` |
+| 支付模型 | `backend/internal/models/models.go:72-95` |
+| License Key 模型 | `backend/internal/models/models.go:97-110` |
 | 邮箱模型 | `backend/internal/models/models.go:31-58` |
 | 前端导入组件 | `frontend/src/pages/Emails.tsx:157-182` |
 | 前端验证组件 | `frontend/src/pages/Emails.tsx:205-260` |
 | 前端验证方法选择 | `frontend/src/pages/Emails.tsx:360-410` |
+| 前端支付页面 | `frontend/src/pages/Payment.tsx` |
+| 前端 License Key 输入 | `frontend/src/pages/Emails.tsx:520-575` |
 
 ## 待办事项
 
@@ -326,6 +411,28 @@ npm run dev
 - meta 字段可选，不提供则使用默认值
 
 ## 常见问题
+
+### License Key 相关
+
+**问题**：邮箱验证时提示 "需要有效的 License Key"
+
+**原因**：邮箱验证功能需要购买并激活 License Key
+
+**解决方案**：
+1. 访问 `/payment` 页面购买 License Key
+2. 选择合适的产品套餐（基础版/专业版/企业版）
+3. 完成支付后获取 Key Code
+4. 在 Emails 页面的验证区域输入 Key Code
+5. 点击 "Check Key" 验证密钥有效性
+6. 验证成功后即可使用邮箱验证功能
+
+**问题**：License Key 额度用尽
+
+**原因**：每次邮箱验证会消耗 1 次额度，当额度用尽时密钥状态变为 exhausted
+
+**解决方案**：
+- 购买新的 License Key
+- 或升级到更高级别的套餐（更多额度）
 
 ### JWT 认证失败
 **问题**：登录时返回 500 错误，日志显示 "JWT_SECRET environment variable is required"
