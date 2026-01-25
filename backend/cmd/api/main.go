@@ -74,6 +74,7 @@ func main() {
 			emails.GET("", emailHandler.GetEmails)
 			emails.GET("/:id", emailHandler.GetEmail)
 			emails.POST("", emailHandler.CreateEmail)
+			emails.POST("/import", emailHandler.ImportEmails)
 			emails.PUT("/:id", emailHandler.UpdateEmail)
 			emails.DELETE("/:id", emailHandler.DeleteEmail)
 		}

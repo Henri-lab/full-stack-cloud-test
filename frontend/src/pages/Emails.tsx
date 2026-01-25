@@ -1,6 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, ChangeEvent } from 'react'
 import * as OTPAuth from 'otpauth'
 import api from '../services/api'
+import { AxiosError } from 'axios'
+
+interface EmailFamily {
+  id: number
+  email: string
+  password: string
+  code: string
+  contact: string
+  issue: string
+}
 
 interface EmailMeta {
   banned: boolean
@@ -19,6 +29,7 @@ interface Email {
   deputy: string
   key_2FA: string
   meta: EmailMeta
+  familys: EmailFamily[]
 }
 
 function Emails() {
@@ -29,6 +40,9 @@ function Emails() {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [totpCodes, setTotpCodes] = useState<{ [key: number]: string }>({})
   const [timeRemaining, setTimeRemaining] = useState(30)
+  const [importing, setImporting] = useState(false)
+  const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Generate TOTP code for a specific email
   const generateTOTP = (secret: string): string => {
@@ -61,7 +75,7 @@ function Emails() {
 
   useEffect(() => {
     let isMounted = true
-    const fetchEmails = async () => {
+    const loadEmails = async () => {
       try {
         const response = await api.get<Email[]>('/emails')
         if (isMounted) {
@@ -79,7 +93,7 @@ function Emails() {
       }
     }
 
-    fetchEmails()
+    loadEmails()
     return () => {
       isMounted = false
     }
@@ -127,6 +141,49 @@ function Emails() {
     return <span className="px-3 py-1 text-xs font-semibold rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white">Active</span>
   }
 
+  const fetchEmails = async () => {
+    try {
+      const response = await api.get<Email[]>('/emails')
+      setEmails(response.data)
+    } catch (err) {
+      console.error('Failed to load emails', err)
+      setError('Failed to load emails.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImporting(true)
+    setImportMessage(null)
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await api.post<{ message: string; imported: number }>('/emails/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setImportMessage({ type: 'success', text: `${response.data.message} (${response.data.imported} emails)` })
+      fetchEmails()
+    } catch (err) {
+      const axiosError = err as AxiosError<{ error: string }>
+      setImportMessage({ type: 'error', text: axiosError.response?.data?.error || 'Import failed' })
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
@@ -150,8 +207,8 @@ function Emails() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-6">
+      {/* Search and Import */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <input
           type="text"
           placeholder="Search emails..."
@@ -159,7 +216,27 @@ function Emails() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full max-w-md px-4 py-3 bg-slate-800 border-2 border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:shadow-lg focus:shadow-indigo-500/20 transition-all"
         />
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept=".json"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <button
+          onClick={handleImportClick}
+          disabled={importing}
+          className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-lg hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg hover:shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {importing ? 'Importing...' : 'Import JSON'}
+        </button>
       </div>
+
+      {importMessage && (
+        <div className={`mb-6 p-4 rounded-lg ${importMessage.type === 'success' ? 'bg-green-500/20 border border-green-500/50 text-green-400' : 'bg-red-500/20 border border-red-500/50 text-red-400'}`}>
+          {importMessage.text}
+        </div>
+      )}
 
       {loading && (
         <div className="mb-6 text-slate-400">Loading emails...</div>

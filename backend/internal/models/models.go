@@ -39,7 +39,19 @@ type Email struct {
 	Sold       bool           `gorm:"default:false" json:"-"`
 	NeedRepair bool           `gorm:"default:false" json:"-"`
 	Source     string         `gorm:"column:source" json:"-"`
+	Familys    []EmailFamily  `gorm:"foreignKey:EmailID" json:"familys,omitempty"`
 	CreatedAt  time.Time      `json:"-"`
 	UpdatedAt  time.Time      `json:"-"`
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+type EmailFamily struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	EmailID   uint           `gorm:"not null;index" json:"email_id"`
+	Email     string         `gorm:"not null" json:"email"`
+	Password  string         `gorm:"not null" json:"password"`
+	Code      string         `json:"code"`
+	Contact   string         `json:"contact"`
+	Issue     string         `json:"issue"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
