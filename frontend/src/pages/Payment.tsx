@@ -42,6 +42,7 @@ const Payment: React.FC = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [activeTab, setActiveTab] = useState<'buy' | 'keys'>('buy')
+  const [activeKey, setActiveKey] = useState(() => localStorage.getItem('license_key') || '')
 
   // 模拟支付状态
   const [paymentStep, setPaymentStep] = useState<'select' | 'pay' | 'success'>('select')
@@ -100,7 +101,7 @@ const Payment: React.FC = () => {
 
     try {
       // 模拟支付回调
-      const response = await api.post('/payments/notify', {
+      const response = await api.post<{ license_key: { key_code: string } }>('/payments/notify', {
         order_no: currentOrder.order_no,
         transaction_id: `TXN${Date.now()}`,
         payment_method: method,
@@ -108,6 +109,10 @@ const Payment: React.FC = () => {
 
       setSuccess('支付成功！License Key 已生成')
       setPaymentStep('success')
+      if (response.data?.license_key?.key_code) {
+        localStorage.setItem('license_key', response.data.license_key.key_code)
+        setActiveKey(response.data.license_key.key_code)
+      }
 
       // 刷新密钥列表
       await fetchMyKeys()
@@ -124,6 +129,12 @@ const Payment: React.FC = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const applyKey = (keyCode: string) => {
+    localStorage.setItem('license_key', keyCode)
+    setActiveKey(keyCode)
+    setSuccess('已设置为当前使用的 License Key')
   }
 
   const formatPrice = (price: number) => {
@@ -434,6 +445,9 @@ const Payment: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         创建时间
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        操作
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -463,6 +477,18 @@ const Payment: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(key.created_at).toLocaleString('zh-CN')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => applyKey(key.key_code)}
+                            className={`px-3 py-1 rounded text-xs font-medium ${
+                              activeKey === key.key_code
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                            }`}
+                          >
+                            {activeKey === key.key_code ? '已使用' : '设为当前'}
+                          </button>
                         </td>
                       </tr>
                     ))}

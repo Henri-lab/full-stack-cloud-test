@@ -222,7 +222,11 @@ function Emails() {
       fetchEmails(response.data.import_id)
     } catch (err) {
       const axiosError = err as AxiosError<{ error: string }>
-      setImportMessage({ type: 'error', text: axiosError.response?.data?.error || 'Import failed' })
+      const errorMsg = axiosError.response?.data?.error || 'Import failed'
+      setImportMessage({ type: 'error', text: errorMsg })
+      if (errorMsg.includes('License Key') || errorMsg.includes('Key') || errorMsg.includes('额度')) {
+        setShowLicenseInput(true)
+      }
     } finally {
       setImporting(false)
       if (fileInputRef.current) {
@@ -358,25 +362,6 @@ function Emails() {
       // 不自动检查，让用户手动触发
     }
   }, [])
-
-      // 更新本地邮箱状态
-      setEmails(prevEmails => prevEmails.map(email => {
-        const result = response.data.results.find(r => r.email === email.main)
-        if (result) {
-          return { ...email, status: result.status }
-        }
-        return email
-      }))
-
-      // 清空选择
-      setSelectedEmails(new Set())
-    } catch (err) {
-      const axiosError = err as AxiosError<{ error: string }>
-      setImportMessage({ type: 'error', text: axiosError.response?.data?.error || 'Verification failed' })
-    } finally {
-      setVerifying(false)
-    }
-  }
 
   // 切换邮箱选择
   const toggleEmailSelection = (id: number) => {

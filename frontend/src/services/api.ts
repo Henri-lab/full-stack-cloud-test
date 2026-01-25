@@ -21,6 +21,11 @@ api.interceptors.request.use(
       config.headers = config.headers ?? {}
       config.headers.Authorization = `Bearer ${token}`
     }
+    const licenseKey = localStorage.getItem('license_key')
+    if (licenseKey) {
+      config.headers = config.headers ?? {}
+      config.headers['X-License-Key'] = licenseKey
+    }
     return config
   },
   (error) => {

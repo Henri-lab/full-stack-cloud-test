@@ -57,6 +57,7 @@ func main() {
 		// Task routes
 		tasks := v1.Group("/tasks")
 		tasks.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		tasks.Use(middleware.LicenseKeyMiddleware(db, "task_management"))
 		{
 			taskHandler := handlers.NewTaskHandler(db)
 			tasks.GET("", taskHandler.GetTasks)
@@ -75,7 +76,10 @@ func main() {
 			emails.GET("/imports", emailHandler.GetEmailImports)
 			emails.GET("/:id", emailHandler.GetEmail)
 			emails.POST("", emailHandler.CreateEmail)
-			emails.POST("/import", emailHandler.ImportEmails)
+			emails.POST("/import",
+				middleware.LicenseKeyMiddleware(db, "email_import"),
+				emailHandler.ImportEmails,
+			)
 			// 邮箱验证需要 License Key 和消耗额度
 			emails.POST("/verify",
 				middleware.LicenseKeyMiddleware(db, "email_verify"),

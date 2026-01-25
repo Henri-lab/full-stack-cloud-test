@@ -70,8 +70,8 @@ fullStack/
 - `GET /api/v1/emails` - 获取所有邮箱（含 family 邮箱）
 - `GET /api/v1/emails/:id` - 获取单个邮箱
 - `POST /api/v1/emails` - 创建邮箱
-- `POST /api/v1/emails/import` - 批量导入邮箱（JSON 文件上传）
-- `POST /api/v1/emails/verify` - 批量验证邮箱状态（需要 License Key）
+- `POST /api/v1/emails/import` - 批量导入邮箱（JSON 文件上传，需 License Key）
+- `POST /api/v1/emails/verify` - 批量验证邮箱状态（需 License Key）
 - `PUT /api/v1/emails/:id` - 更新邮箱
 - `DELETE /api/v1/emails/:id` - 删除邮箱
 
@@ -188,6 +188,10 @@ PORT=8080
   - 自动消耗额度
   - 实时显示剩余额度
   - Key 输入和验证界面
+- [x] **自动权限生效**
+  - 支付成功自动设置当前 Key
+  - 前端请求自动携带 `X-License-Key`
+  - 邮箱导入与任务管理需有效 Key
 
 ### 2025-01-25 批量复制功能
 - [x] **批量复制邮箱地址** - 一键复制选中的邮箱到剪贴板

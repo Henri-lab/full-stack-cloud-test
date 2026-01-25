@@ -56,15 +56,10 @@
 
 ## 使用 License Key
 
-### 1. 复制密钥
-- 在 "我的 Key" 页面找到要使用的密钥
-- 复制 Key Code（格式：XXXX-XXXX-XXXX-XXXX）
-
-### 2. 激活密钥（首次使用）
-- 访问 Emails 页面
-- 点击 **"Verify Emails"** 按钮展开验证区域
-- 在 License Key 输入框中粘贴密钥
-- 点击 **"Check Key"** 按钮验证
+### 1. 自动设置当前 Key（推荐）
+- 支付成功后系统会自动把新 Key 设为当前使用 Key
+- 或在 "我的 Key" 页面点击 **"设为当前"** 按钮
+- 设置后前端会自动在请求里携带 `X-License-Key`
 
 ### 3. 验证邮箱
 1. 输入并验证 License Key
@@ -196,6 +191,12 @@ Content-Type: application/json
   "key": "gmailver_api_key" // 仅 API 方法需要
 }
 ```
+
+## 自动权限说明
+
+- **邮箱导入**、**任务管理** 等功能需要 License Key
+- 前端会自动携带当前 Key（无需手动复制）
+- 若未设置 Key，会提示权限不足并引导设置
 
 ## 常见问题
 
